@@ -5,7 +5,7 @@ go 1.13
 require (
 	emperror.dev/errors v0.4.2
 	github.com/Azure/go-autorest/autorest/azure/auth v0.4.2 // indirect
-	github.com/Shopify/sarama v1.23.1
+	github.com/Shopify/sarama v1.26.1
 	github.com/banzaicloud/bank-vaults/pkg/sdk v0.2.0
 	github.com/banzaicloud/istio-client-go v0.0.0-20200207164547-0c6796585145
 	github.com/banzaicloud/istio-operator v0.0.0-20191212123221-6e3658721f00
@@ -37,7 +37,6 @@ require (
 	github.com/prometheus/common v0.4.1
 	go.opencensus.io v0.22.0 // indirect
 	google.golang.org/api v0.7.0 // indirect
-	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect
 	k8s.io/api v0.17.3
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v11.0.1-0.20190516230509-ae8359b20417+incompatible
