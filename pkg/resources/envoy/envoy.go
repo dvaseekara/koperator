@@ -96,6 +96,12 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 			objectsMarkedForReconcile = r.getGlobalObjects(log)
 		}
 
+		if !r.KafkaCluster.Spec.EnvoyConfig.BringYourOwnLB {
+			objectsMarkedForReconcile = append(objectsMarkedForReconcile, r.loadBalancer(log))
+		} else {
+			objectsMarkedForDelete = append(objectsMarkedForDelete, r.loadBalancer(log))
+		}
+
 		for _, o := range objectsMarkedForReconcile {
 			err := k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
 			if err != nil {

@@ -1135,6 +1135,11 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                bringYourOwnLoadBalancer:
+                  description: Set this to true if you dont want the operator to create
+                    a LoadBalancer service. This is recommended if you want to use your
+                    own LoadBalancer.
+                  type: boolean
                 image:
                   type: string
                 imagePullSecrets:
