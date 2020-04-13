@@ -499,6 +499,16 @@ spec:
                           type: string
                       type: object
                     type: array
+                  envoy:
+                    description: Custom properties for the dedicated envoy deployment
+                      for this broker configuration group.
+                      Applicable only if EnvoyConfig.dedicatedEnvoyPerBrokerGroup is
+                      set to true.
+                    properties:
+                      replicas:
+                        format: int32
+                        type: integer
+                    type: Object
                 type: object
               type: object
             brokers:
@@ -1130,6 +1140,11 @@ spec:
                         type: string
                     type: object
                   type: array
+                dedicatedEnvoyPerBrokerGroup:
+                  description: Set this to true if you dont want the operator to create
+                    one Envoy deployment for each BrokerConifgGrop. This is recommended
+                    if you want to keep the brokers and the envoy in the same group/rack.
+                  type: boolean
                 loadBalancerSourceRanges:
                   items:
                     type: string

@@ -103,6 +103,11 @@ type BrokerConfig struct {
 	KafkaHeapOpts      string                        `json:"kafkaHeapOpts,omitempty"`
 	KafkaJVMPerfOpts   string                        `json:"kafkaJvmPerfOpts,omitempty"`
 	BrokerAnnotations  map[string]string             `json:"brokerAnnotations,omitempty"`
+	Envoy              *BrokerGroupEnvoy             `json:"envoy,omitempty"`
+}
+
+type BrokerGroupEnvoy struct {
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // RackAwareness defines the required fields to enable kafka's rack aware feature
@@ -152,6 +157,9 @@ type EnvoyConfig struct {
 	Tolerations              []corev1.Toleration           `json:"tolerations,omitempty"`
 	Annotations              map[string]string             `json:"annotations,omitempty"`
 	LoadBalancerSourceRanges []string                      `json:"loadBalancerSourceRanges,omitempty"`
+	EnvoyPerBrokerGroup      bool                          `json:"dedicatedEnvoyPerBrokerGroup,omitempty"`
+	NodeAffinity             *corev1.NodeAffinity          `json:"nodeAffinity,omitempty"`
+	Id                       string                        `json:"id,omitempty"`
 }
 
 // IstioIngressConfig defines the config for the Istio Ingress Controller

@@ -44,6 +44,8 @@ type Resource func() runtime.Object
 // ResourceWithLogs function with log parameter
 type ResourceWithLogs func(log logr.Logger) runtime.Object
 
+type ResourceWithLogsAndEnvoyConfig func(log logr.Logger, envoyConfig *v1beta1.EnvoyConfig) runtime.Object
+
 // ResourceWithLogsAndClientPassword function with log and password parameter
 type ResourceWithLogsAndClientPassword func(log logr.Logger, clientPass string) runtime.Object
 

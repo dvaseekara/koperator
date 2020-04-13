@@ -205,6 +205,29 @@ func GetBrokerConfig(broker v1beta1.Broker, clusterSpec v1beta1.KafkaClusterSpec
 	return bConfig, nil
 }
 
+// GetEnvoyConfig compose the Envoy config from a specific broker config and the global config
+func GetEnvoyConfig(configId string, brokerConfig v1beta1.BrokerConfig, clusterSpec v1beta1.KafkaClusterSpec) *v1beta1.EnvoyConfig {
+	envoyConfig := clusterSpec.EnvoyConfig.DeepCopy()
+	envoyConfig.Id = configId
+
+	if !clusterSpec.EnvoyConfig.EnvoyPerBrokerGroup {
+		return envoyConfig
+	}
+
+	// Broker config level overrides
+	if brokerConfig.Envoy != nil && brokerConfig.Envoy.Replicas > 0 {
+		envoyConfig.Replicas = brokerConfig.Envoy.Replicas
+	}
+	if brokerConfig.NodeSelector != nil {
+		envoyConfig.NodeSelector = brokerConfig.NodeSelector
+	}
+	if brokerConfig.NodeAffinity != nil {
+		envoyConfig.NodeAffinity = brokerConfig.NodeAffinity
+	}
+
+	return envoyConfig
+}
+
 // GetBrokerImage returns the used broker image
 func GetBrokerImage(brokerConfig *v1beta1.BrokerConfig, clusterImage string) string {
 	if brokerConfig.Image != "" {

@@ -499,6 +499,16 @@ spec:
                           type: string
                       type: object
                     type: array
+                  envoy:
+                    description: Custom properties for the dedicated envoy deployment
+                      for this broker configuration group.
+                      Applicable only if EnvoyConfig.dedicatedEnvoyPerBrokerGroup is
+                      set to true.
+                    properties:
+                      replicas:
+                        format: int32
+                        type: integer
+                    type: Object
                 type: object
               type: object
             brokers:
@@ -514,6 +524,14 @@ spec:
                         type: object
                       config:
                         type: string
+                      dedicatedEnvoyDeployment:
+                        properties:
+                          enabled:
+                            type: boolean
+                          replicas:
+                            format: int32
+                            type: integer
+                        type: object
                       image:
                         type: string
                       imagePullSecrets:
