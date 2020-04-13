@@ -105,6 +105,12 @@ type BrokerConfig struct {
 	KafkaHeapOpts      string                        `json:"kafkaHeapOpts,omitempty"`
 	KafkaJVMPerfOpts   string                        `json:"kafkaJvmPerfOpts,omitempty"`
 	BrokerAnnotations  map[string]string             `json:"brokerAnnotations,omitempty"`
+	Envoy              *BrokerGroupEnvoy             `json:"envoy,omitempty"`
+	ListenersConfig    *ListenersConfig              `json:"listenersConfig,omitempty"`
+}
+
+type BrokerGroupEnvoy struct {
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // RackAwareness defines the required fields to enable kafka's rack aware feature
@@ -154,6 +160,10 @@ type EnvoyConfig struct {
 	Tolerations              []corev1.Toleration           `json:"tolerations,omitempty"`
 	Annotations              map[string]string             `json:"annotations,omitempty"`
 	LoadBalancerSourceRanges []string                      `json:"loadBalancerSourceRanges,omitempty"`
+	BringYourOwnLB           bool                          `json:"bringYourOwnLoadBalancer,omitempty"`
+	EnvoyPerBrokerGroup      bool                          `json:"dedicatedEnvoyPerBrokerGroup,omitempty"`
+	NodeAffinity             *corev1.NodeAffinity          `json:"nodeAffinity,omitempty"`
+	Id                       string                        `json:"id,omitempty"`
 }
 
 // IstioIngressConfig defines the config for the Istio Ingress Controller
@@ -261,7 +271,7 @@ type AlertManagerConfig struct {
 type ExternalListenerConfig struct {
 	CommonListenerSpec   `json:",inline"`
 	ExternalStartingPort int32             `json:"externalStartingPort"`
-	HostnameOverride     string            `json:"hostnameOverride,omitempty"`
+	Hostname             string            `json:"hostnameOverride,omitempty"`
 	ServiceAnnotations   map[string]string `json:"serviceAnnotations,omitempty"`
 }
 

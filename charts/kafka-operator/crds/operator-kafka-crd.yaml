@@ -500,6 +500,47 @@ spec:
                           type: string
                       type: object
                     type: array
+                  envoy:
+                    description: Custom properties for the dedicated envoy deployment
+                      for this broker configuration group.
+                      Applicable only if EnvoyConfig.dedicatedEnvoyPerBrokerGroup is
+                      set to true.
+                    properties:
+                      replicas:
+                        format: int32
+                        type: integer
+                    type: Object
+                  listenersConfig:
+                    description: ListenersConfig defines the broker specofic Kafka
+                     listener types. These will override the global ListenersConfig
+                    properties:
+                      externalListeners:
+                        items:
+                          description: ExternalListenerConfig defines the external listener
+                            config for Kafka
+                          properties:
+                            containerPort:
+                              format: int32
+                              type: integer
+                            externalStartingPort:
+                              format: int32
+                              type: integer
+                            hostnameOverride:
+                              type: string
+                            name:
+                              type: string
+                            type:
+                              type: string
+                          required:
+                            - containerPort
+                            - externalStartingPort
+                            - name
+                            - type
+                          type: object
+                        type: array
+                    required:
+                      - externalListeners
+                    type: object
                 type: object
               type: object
             brokers:
@@ -1131,6 +1172,16 @@ spec:
                         type: string
                     type: object
                   type: array
+                bringYourOwnLoadBalancer:
+                  description: Set this to true if you dont want the operator to create
+                    a LoadBalancer service. This is recommended if you want to use your
+                    own LoadBalancer.
+                  type: boolean
+                dedicatedEnvoyPerBrokerGroup:
+                  description: Set this to true if you dont want the operator to create
+                    one Envoy deployment for each BrokerConifgGrop. This is recommended
+                    if you want to keep the brokers and the envoy in the same group/rack.
+                  type: boolean
                 loadBalancerSourceRanges:
                   items:
                     type: string
