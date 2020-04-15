@@ -30,13 +30,18 @@ require (
 	github.com/pavel-v-chernykh/keystore-go v2.1.0+incompatible
 	github.com/prometheus/common v0.9.1
 	go.opencensus.io v0.22.0 // indirect
-	k8s.io/api v0.17.3
-	k8s.io/apimachinery v0.17.3
-	k8s.io/client-go v0.17.3
+	k8s.io/api v0.17.5
+	k8s.io/apimachinery v0.17.5
+	k8s.io/client-go v0.17.5
 	sigs.k8s.io/controller-runtime v0.5.2
 )
 
-replace (
-	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.4.0+incompatible
-	github.com/banzaicloud/kafka-operator/api => ./pkg/sdk
-)
+replace github.com/banzaicloud/kafka-operator/api => ./pkg/sdk
+
+replace k8s.io/api => k8s.io/api v0.17.5
+
+replace k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.5
+
+replace k8s.io/apimachinery => k8s.io/apimachinery v0.17.5
+
+replace k8s.io/client-go => k8s.io/client-go v0.17.5
