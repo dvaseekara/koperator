@@ -19,7 +19,7 @@ jobs:
           build_args: VERSION=${{ steps.vars.outputs.tag }},GIT_SHA=${{ github.sha }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: adobe/kafka-operator
+          repository: amuraru/kafka-operator
           tag_with_ref: true
           push: ${{ startsWith(github.ref, 'refs/tags/') }}
           add_git_labels: true
