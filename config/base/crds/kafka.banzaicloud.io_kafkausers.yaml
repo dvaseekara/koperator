@@ -14,7 +14,6 @@ spec:
     listKind: KafkaUserList
     plural: kafkausers
     singular: kafkauser
-  preserveUnknownFields: false
   scope: Namespaced
   subresources:
     status: {}

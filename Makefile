@@ -3,7 +3,7 @@ TAG ?= $(shell git describe --tags --abbrev=0 --match '[0-9].*[0-9].*[0-9]' 2>/d
 IMG ?= banzaicloud/kafka-operator:$(TAG)
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 RELEASE_TYPE ?= p
 RELEASE_MSG ?= "operator release"
