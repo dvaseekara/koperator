@@ -20,6 +20,8 @@
 
 </p>
 
+Internal release: `0.11.0-adobe-20200419`
+
 # Kafka-Operator
 
 The Banzai Cloud Kafka operator is a Kubernetes operator to automate provisioning, management, autoscaling and operations of [Apache Kafka](https://kafka.apache.org) clusters deployed to K8s.
