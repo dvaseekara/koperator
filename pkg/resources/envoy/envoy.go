@@ -15,6 +15,8 @@
 package envoy
 
 import (
+	"fmt"
+
 	"github.com/banzaicloud/kafka-operator/api/v1beta1"
 	"github.com/banzaicloud/kafka-operator/pkg/k8sutil"
 	"github.com/banzaicloud/kafka-operator/pkg/resources"
@@ -32,8 +34,12 @@ const (
 	envoyGlobal              = "envoy-global"
 )
 
-var labelSelector = map[string]string{
-	"app": "envoy",
+func labelSelector(envoyConfig *v1beta1.EnvoyConfig) map[string]string {
+	if envoyConfig.Id == envoyGlobal {
+		return map[string]string{"app": componentName,}
+	} else {
+		return map[string]string{"app": fmt.Sprintf("%s-%s", componentName, envoyConfig.Id),}
+	}
 }
 
 // Reconciler implements the Component Reconciler

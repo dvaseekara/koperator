@@ -45,7 +45,7 @@ func configName(envoyConfig *v1beta1.EnvoyConfig) string {
 
 func (r *Reconciler) configMap(log logr.Logger, envoyConfig *v1beta1.EnvoyConfig) runtime.Object {
 	configMap := &corev1.ConfigMap{
-		ObjectMeta: templates.ObjectMeta(configName(envoyConfig), labelSelector, r.KafkaCluster),
+		ObjectMeta: templates.ObjectMeta(configName(envoyConfig), labelSelector(envoyConfig), r.KafkaCluster),
 		Data:       map[string]string{"envoy.yaml": generateEnvoyConfig(r.KafkaCluster, envoyConfig, log)},
 	}
 	return configMap

@@ -38,15 +38,15 @@ func deploymentName(envoyConfig *v1beta1.EnvoyConfig) string {
 
 func (r *Reconciler) deployment(log logr.Logger, envoyConfig *v1beta1.EnvoyConfig) runtime.Object {
 	return &appsv1.Deployment{
-		ObjectMeta: templates.ObjectMeta(deploymentName(envoyConfig), labelSelector, r.KafkaCluster),
+		ObjectMeta: templates.ObjectMeta(deploymentName(envoyConfig), labelSelector(envoyConfig), r.KafkaCluster),
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labelSelector,
+				MatchLabels: labelSelector(envoyConfig),
 			},
 			Replicas: util.Int32Pointer(envoyConfig.GetReplicas()),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labelSelector,
+					Labels: labelSelector(envoyConfig),
 				},
 				Spec: getPodSpec(log, envoyConfig, r.KafkaCluster),
 			},
