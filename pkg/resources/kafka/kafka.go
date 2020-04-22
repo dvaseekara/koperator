@@ -190,26 +190,27 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 
 	lbIPs := make([]string, 0)
 
-	if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners != nil {
-		// TODO: This is a hack that needs to be banished when the time is right.
-		// Currently we only support one external listener but this will be fixed
-		// sometime in the future
-		if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride != "" {
-			// first element of slice will be used for external advertised listener
-			lbIPs = append(lbIPs, r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride)
-		}
-
+	// TODO: This is a hack that needs to be banished when the time is right.
+	// Currently we only support one external listener but this will be fixed
+	// sometime in the future
+	if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners != nil && r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride != "" {
+		// first element of slice will be used for external advertised listener
+		lbIPs = append(lbIPs, r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride)
+	} else {
 		// Append LoadBalancerIPs if LoadBalancer was created by the operator
+		// (Required only if ExternalListener.HostnameOverride is not set)
 		if !r.KafkaCluster.Spec.EnvoyConfig.BringYourOwnLB {
 			lbIP, err := getLoadBalancerIP(r.Client, r.KafkaCluster.Namespace, r.KafkaCluster.Spec.GetIngressController(), r.KafkaCluster.Name, log)
 			if err != nil {
 				return err
 			}
 			lbIPs = append(lbIPs, lbIP)
+		} else {
+			// We should either let the operator create the LoadBalancer or override the hostname.
+			// We need an external accessible address for the Kafka config.
+			return errorfactory.New(errorfactory.KafkaConfigError{}, errors.New("Cannot use BringYourOwnLoadBalancer config without ExternalListener.HostnameOverride"), "")
 		}
 	}
-	//TODO remove after testing
-	//lBIp := "192.168.0.1"
 
 	// Setup the PKI if using SSL
 	if r.KafkaCluster.Spec.ListenersConfig.SSLSecrets != nil {
