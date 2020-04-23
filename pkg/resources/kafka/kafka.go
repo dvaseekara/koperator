@@ -188,34 +188,15 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		return errors.WrapIf(err, "failed to reconcile resource")
 	}
 
-	lbIPs := make([]string, 0)
-
-	// TODO: This is a hack that needs to be banished when the time is right.
-	// Currently we only support one external listener but this will be fixed
-	// sometime in the future
-	if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners != nil && r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride != "" {
-		// first element of slice will be used for external advertised listener
-		lbIPs = append(lbIPs, r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride)
-	} else {
-		// Append LoadBalancerIPs if LoadBalancer was created by the operator
-		// (Required only if ExternalListener.HostnameOverride is not set)
-		if !r.KafkaCluster.Spec.EnvoyConfig.BringYourOwnLB {
-			lbIP, err := getLoadBalancerIP(r.Client, r.KafkaCluster.Namespace, r.KafkaCluster.Spec.GetIngressController(), r.KafkaCluster.Name, log)
-			if err != nil {
-				return err
-			}
-			lbIPs = append(lbIPs, lbIP)
-		} else {
-			// We should either let the operator create the LoadBalancer or override the hostname.
-			// We need an external accessible address for the Kafka config.
-			return errorfactory.New(errorfactory.KafkaConfigError{}, errors.New("Cannot use BringYourOwnLoadBalancer config without ExternalListener.HostnameOverride"), "")
-		}
+	err = reconcileListenersConfig(r.Client, r.KafkaCluster, log)
+	if err != nil {
+		return errors.WrapIf(err, "failed to reconcile resource")
 	}
 
 	// Setup the PKI if using SSL
 	if r.KafkaCluster.Spec.ListenersConfig.SSLSecrets != nil {
 		// reconcile the PKI
-		if err := pki.GetPKIManager(r.Client, r.KafkaCluster, v1beta1.PKIBackendProvided).ReconcilePKI(context.TODO(), log, r.Scheme, lbIPs); err != nil {
+		if err := pki.GetPKIManager(r.Client, r.KafkaCluster, v1beta1.PKIBackendProvided).ReconcilePKI(context.TODO(), log, r.Scheme); err != nil {
 			return err
 		}
 	}
@@ -257,7 +238,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		}
 
 		if r.KafkaCluster.Spec.RackAwareness == nil {
-			o := r.configMap(broker.Id, brokerConfig, lbIPs, serverPass, clientPass, superUsers, log)
+			o := r.configMap(broker.Id, brokerConfig, serverPass, clientPass, superUsers, log)
 			err := k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
 			if err != nil {
 				return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", o.GetObjectKind().GroupVersionKind())
@@ -265,7 +246,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		} else {
 			if brokerState, ok := r.KafkaCluster.Status.BrokersState[strconv.Itoa(int(broker.Id))]; ok {
 				if brokerState.RackAwarenessState != "" {
-					o := r.configMap(broker.Id, brokerConfig, lbIPs, serverPass, clientPass, superUsers, log)
+					o := r.configMap(broker.Id, brokerConfig, serverPass, clientPass, superUsers, log)
 					err := k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
 					if err != nil {
 						return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", o.GetObjectKind().GroupVersionKind())
@@ -303,6 +284,59 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 	log.V(1).Info("Reconciled")
 
 	return nil
+}
+
+func reconcileListenersConfig(c client.Client, cluster *v1beta1.KafkaCluster, log logr.Logger) error {
+	// Reconcile the ListenersConfig.ExternalListeners.Hostname if LoadBalancer is managed by the operator
+	// ExternalListener.HostnameOverride can be empty (missing) if LoadBalancer is managed by the operator
+	if !cluster.Spec.EnvoyConfig.BringYourOwnLB {
+		lbIP, err := getLoadBalancerIP(c, cluster.Namespace, cluster.Spec.GetIngressController(), cluster.Name, log)
+		if err != nil {
+			return err
+		}
+
+		// Reconcile IPs for Global Listeners Config
+		reconcileHostnameForExternalListeners(&cluster.Spec.ListenersConfig, lbIP)
+		// Reconcile IPs for Broker Listeners Config
+		for _, brokerConfig := range cluster.Spec.BrokerConfigGroups {
+			reconcileHostnameForExternalListeners(brokerConfig.ListenersConfig, lbIP)
+		}
+	}
+
+	// All external listeners configs must have a valid Hostname.
+	allListenersConfig := []*v1beta1.ListenersConfig{cluster.Spec.ListenersConfig.DeepCopy()}
+	for _, brokerConfig := range cluster.Spec.BrokerConfigGroups {
+		allListenersConfig = append(allListenersConfig, brokerConfig.ListenersConfig)
+	}
+	for _, listenerConfig := range allListenersConfig {
+		err := validateExternalListeners(listenerConfig)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateExternalListeners(config *v1beta1.ListenersConfig) error {
+	if config != nil {
+		for _, eListener := range config.ExternalListeners {
+			if eListener.Hostname == "" {
+				return errorfactory.New(errorfactory.KafkaConfigError{}, errors.New("Cannot use BringYourOwnLoadBalancer config without ExternalListener.HostnameOverride"), "")
+			}
+		}
+	}
+	return nil
+}
+
+func reconcileHostnameForExternalListeners(config *v1beta1.ListenersConfig, loadBalancerIp string) {
+	if config != nil {
+		for _, eListener := range config.ExternalListeners {
+			if eListener.Hostname == "" {
+				eListener.Hostname = loadBalancerIp
+			}
+		}
+	}
 }
 
 func (r *Reconciler) reconcileKafkaPodDelete(log logr.Logger) error {

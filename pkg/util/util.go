@@ -208,6 +208,11 @@ func GetBrokerConfig(broker v1beta1.Broker, clusterSpec v1beta1.KafkaClusterSpec
 // GetEnvoyConfig compose the Envoy config from a specific broker config and the global config
 func GetEnvoyConfig(configId string, brokerConfig v1beta1.BrokerConfig, clusterSpec v1beta1.KafkaClusterSpec) *v1beta1.EnvoyConfig {
 	envoyConfig := clusterSpec.EnvoyConfig.DeepCopy()
+
+	if envoyConfig == nil {
+		return nil
+	}
+
 	envoyConfig.Id = configId
 
 	if !clusterSpec.EnvoyConfig.EnvoyPerBrokerGroup {

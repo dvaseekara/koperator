@@ -71,7 +71,7 @@ type CruiseControlTaskTimeout struct{ error }
 type CruiseControlTaskFailure struct{ error }
 
 // KafkaConfigError stats that the Kafka configuration is invalid
-type KafkaConfigError struct { error }
+type KafkaConfigError struct{ error }
 
 // New creates a new error factory error
 func New(t interface{}, err error, msg string, wrapArgs ...interface{}) error {

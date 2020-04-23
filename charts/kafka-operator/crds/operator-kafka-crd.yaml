@@ -509,6 +509,37 @@ spec:
                         format: int32
                         type: integer
                     type: Object
+                  listenersConfig:
+                    description: ListenersConfig defines the broker specofic Kafka
+                     listener types. These will override the global ListenersConfig
+                    properties:
+                      externalListeners:
+                        items:
+                          description: ExternalListenerConfig defines the external listener
+                            config for Kafka
+                          properties:
+                            containerPort:
+                              format: int32
+                              type: integer
+                            externalStartingPort:
+                              format: int32
+                              type: integer
+                            hostnameOverride:
+                              type: string
+                            name:
+                              type: string
+                            type:
+                              type: string
+                          required:
+                            - containerPort
+                            - externalStartingPort
+                            - name
+                            - type
+                          type: object
+                        type: array
+                    required:
+                      - externalListeners
+                    type: object
                 type: object
               type: object
             brokers:
