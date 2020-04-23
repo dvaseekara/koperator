@@ -104,6 +104,7 @@ type BrokerConfig struct {
 	KafkaJVMPerfOpts   string                        `json:"kafkaJvmPerfOpts,omitempty"`
 	BrokerAnnotations  map[string]string             `json:"brokerAnnotations,omitempty"`
 	Envoy              *BrokerGroupEnvoy             `json:"envoy,omitempty"`
+	ListenersConfig    *ListenersConfig              `json:"listenersConfig,omitempty"`
 }
 
 type BrokerGroupEnvoy struct {
@@ -235,7 +236,7 @@ type AlertManagerConfig struct {
 type ExternalListenerConfig struct {
 	CommonListenerSpec   `json:",inline"`
 	ExternalStartingPort int32  `json:"externalStartingPort"`
-	HostnameOverride     string `json:"hostnameOverride,omitempty"`
+	Hostname             string `json:"hostnameOverride,omitempty"`
 }
 
 // InternalListenerConfig defines the internal listener config for Kafka

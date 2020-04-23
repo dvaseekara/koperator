@@ -36,9 +36,9 @@ const (
 
 func labelSelector(envoyConfig *v1beta1.EnvoyConfig) map[string]string {
 	if envoyConfig.Id == envoyGlobal {
-		return map[string]string{"app": componentName,}
+		return map[string]string{"app": componentName}
 	} else {
-		return map[string]string{"app": fmt.Sprintf("%s-%s", componentName, envoyConfig.Id),}
+		return map[string]string{"app": fmt.Sprintf("%s-%s", componentName, envoyConfig.Id)}
 	}
 }
 
