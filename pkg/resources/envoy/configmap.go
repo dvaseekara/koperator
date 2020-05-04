@@ -51,6 +51,13 @@ func (r *Reconciler) configMap(log logr.Logger, envoyConfig *v1beta1.EnvoyConfig
 	return configMap
 }
 
+func externalPort(kc *v1beta1.KafkaCluster, broker v1beta1.Broker) uint32 {
+	if broker.BrokerConfig.ListenersConfig != nil && broker.BrokerConfig.ListenersConfig.ExternalListeners != nil {
+		return uint32(broker.BrokerConfig.ListenersConfig.ExternalListeners[0].ExternalStartingPort + broker.Id)
+	}
+	return uint32(kc.Spec.ListenersConfig.ExternalListeners[0].ExternalStartingPort + broker.Id)
+}
+
 func generateEnvoyConfig(kc *v1beta1.KafkaCluster, envoyConfig *v1beta1.EnvoyConfig, log logr.Logger) string {
 	//TODO support multiple external listener by removing [0] (baluchicken)
 	adminConfig := envoybootstrap.Admin{
@@ -78,7 +85,7 @@ func generateEnvoyConfig(kc *v1beta1.KafkaCluster, envoyConfig *v1beta1.EnvoyCon
 						SocketAddress: &envoycore.SocketAddress{
 							Address: "0.0.0.0",
 							PortSpecifier: &envoycore.SocketAddress_PortValue{
-								PortValue: uint32(kc.Spec.ListenersConfig.ExternalListeners[0].ExternalStartingPort + broker.Id),
+								PortValue: externalPort(kc, broker),
 							},
 						},
 					},
