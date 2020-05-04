@@ -80,12 +80,26 @@ func (r *Reconciler) getBrokerConfigSpecificObjects(log logr.Logger) []runtime.O
 	return objects
 }
 
+func hasExternalListeners(kafkaClusterSpec v1beta1.KafkaClusterSpec) bool {
+	// Has global External Listener
+	if kafkaClusterSpec.ListenersConfig.ExternalListeners != nil {
+		return true
+	}
+	// No global External Listener. All BrokerGroups must declare at least 1 ExternalListener
+	for _, brokerConfig := range kafkaClusterSpec.BrokerConfigGroups {
+		if brokerConfig.ListenersConfig == nil || brokerConfig.ListenersConfig.ExternalListeners == nil {
+			return false
+		}
+	}
+	return true
+}
+
 // Reconcile implements the reconcile logic for Envoy
 func (r *Reconciler) Reconcile(log logr.Logger) error {
 	log = log.WithValues("component", componentName)
 
 	log.V(1).Info("Reconciling")
-	if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners != nil && r.KafkaCluster.Spec.GetIngressController() == envoyutils.IngressControllerName {
+	if r.KafkaCluster.Spec.GetIngressController() == envoyutils.IngressControllerName && hasExternalListeners(r.KafkaCluster.Spec) {
 		var objectsMarkedForDelete []runtime.Object
 		var objectsMarkedForReconcile []runtime.Object
 		if r.KafkaCluster.Spec.EnvoyConfig.EnvoyPerBrokerGroup {

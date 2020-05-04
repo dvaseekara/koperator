@@ -17,6 +17,7 @@ package envoy
 import (
 	"fmt"
 
+	"github.com/banzaicloud/kafka-operator/pkg/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
 	"github.com/golang/protobuf/jsonpb"
@@ -51,6 +52,24 @@ func (r *Reconciler) configMap(log logr.Logger, envoyConfig *v1beta1.EnvoyConfig
 	return configMap
 }
 
+func firstExternalListener(kc *v1beta1.KafkaCluster, broker v1beta1.Broker) v1beta1.ExternalListenerConfig {
+	// Check for any broker specific External Listeners
+	brokerConfig, err := util.GetBrokerConfig(broker, kc.Spec)
+	if err == nil && brokerConfig.ListenersConfig != nil && brokerConfig.ListenersConfig.ExternalListeners != nil {
+		return brokerConfig.ListenersConfig.ExternalListeners[0]
+	}
+	// Fallback to the global External Listeners
+	return kc.Spec.ListenersConfig.ExternalListeners[0]
+}
+
+func externalPort(kc *v1beta1.KafkaCluster, broker v1beta1.Broker) uint32 {
+	return uint32(firstExternalListener(kc, broker).ExternalStartingPort + broker.Id)
+}
+
+func containerPort(kc *v1beta1.KafkaCluster, broker v1beta1.Broker) uint32 {
+	return uint32(firstExternalListener(kc,broker).ContainerPort)
+}
+
 func generateEnvoyConfig(kc *v1beta1.KafkaCluster, envoyConfig *v1beta1.EnvoyConfig, log logr.Logger) string {
 	//TODO support multiple external listener by removing [0] (baluchicken)
 	adminConfig := envoybootstrap.Admin{
@@ -78,7 +97,7 @@ func generateEnvoyConfig(kc *v1beta1.KafkaCluster, envoyConfig *v1beta1.EnvoyCon
 						SocketAddress: &envoycore.SocketAddress{
 							Address: "0.0.0.0",
 							PortSpecifier: &envoycore.SocketAddress_PortValue{
-								PortValue: uint32(kc.Spec.ListenersConfig.ExternalListeners[0].ExternalStartingPort + broker.Id),
+								PortValue: externalPort(kc, broker),
 							},
 						},
 					},
@@ -114,7 +133,7 @@ func generateEnvoyConfig(kc *v1beta1.KafkaCluster, envoyConfig *v1beta1.EnvoyCon
 							SocketAddress: &envoycore.SocketAddress{
 								Address: fmt.Sprintf("%s-%d.%s-headless.%s.svc.cluster.local", kc.Name, broker.Id, kc.Name, kc.Namespace),
 								PortSpecifier: &envoycore.SocketAddress_PortValue{
-									PortValue: uint32(kc.Spec.ListenersConfig.ExternalListeners[0].ContainerPort),
+									PortValue: containerPort(kc, broker),
 								},
 							},
 						},
