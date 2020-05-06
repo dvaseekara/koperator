@@ -287,7 +287,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 }
 
 func reconcileExternalListenersConfig(c client.Client, cluster *v1beta1.KafkaCluster, log logr.Logger) error {
-	if !util.HasExternalListeners(r.KafkaCluster.Spec) {
+	if !util.HasExternalListeners(cluster.Spec) {
 		return nil
 	}
 
@@ -335,9 +335,9 @@ func validateExternalListeners(config *v1beta1.ListenersConfig) error {
 
 func reconcileHostnameForExternalListeners(config *v1beta1.ListenersConfig, loadBalancerIp string) {
 	if config != nil {
-		for _, eListener := range config.ExternalListeners {
+		for idx, eListener := range config.ExternalListeners {
 			if eListener.Hostname == "" {
-				eListener.Hostname = loadBalancerIp
+				config.ExternalListeners[idx].Hostname = loadBalancerIp
 			}
 		}
 	}
