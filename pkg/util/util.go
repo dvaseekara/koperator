@@ -253,3 +253,17 @@ func GetRandomString(length int) (string, error) {
 	}
 	return b.String(), nil
 }
+
+func HasExternalListeners(kafkaClusterSpec v1beta1.KafkaClusterSpec) bool {
+	// Has global External Listener
+	if kafkaClusterSpec.ListenersConfig.ExternalListeners != nil {
+		return true
+	}
+	// No global External Listener. All BrokerGroups must declare at least 1 ExternalListener
+	for _, brokerConfig := range kafkaClusterSpec.BrokerConfigGroups {
+		if brokerConfig.ListenersConfig == nil || brokerConfig.ListenersConfig.ExternalListeners == nil {
+			return false
+		}
+	}
+	return true
+}

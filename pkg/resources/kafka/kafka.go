@@ -188,7 +188,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		return errors.WrapIf(err, "failed to reconcile resource")
 	}
 
-	err = reconcileListenersConfig(r.Client, r.KafkaCluster, log)
+	err = reconcileExternalListenersConfig(r.Client, r.KafkaCluster, log)
 	if err != nil {
 		return errors.WrapIf(err, "failed to reconcile resource")
 	}
@@ -286,7 +286,11 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 	return nil
 }
 
-func reconcileListenersConfig(c client.Client, cluster *v1beta1.KafkaCluster, log logr.Logger) error {
+func reconcileExternalListenersConfig(c client.Client, cluster *v1beta1.KafkaCluster, log logr.Logger) error {
+	if !util.HasExternalListeners(r.KafkaCluster.Spec) {
+		return nil
+	}
+
 	// Reconcile the ListenersConfig.ExternalListeners.Hostname if LoadBalancer is managed by the operator
 	// ExternalListener.HostnameOverride can be empty (missing) if LoadBalancer is managed by the operator
 	if !cluster.Spec.EnvoyConfig.BringYourOwnLB {
