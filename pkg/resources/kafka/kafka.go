@@ -293,7 +293,7 @@ func reconcileExternalListenersConfig(c client.Client, cluster *v1beta1.KafkaClu
 
 	// Reconcile the ListenersConfig.ExternalListeners.Hostname if LoadBalancer is managed by the operator
 	// ExternalListener.HostnameOverride can be empty (missing) if LoadBalancer is managed by the operator
-	if !cluster.Spec.EnvoyConfig.BringYourOwnLB {
+	if !cluster.Spec.EnvoyConfig.UseExistingLB {
 		lbIP, err := getLoadBalancerIP(c, cluster.Namespace, cluster.Spec.GetIngressController(), cluster.Name, log)
 		if err != nil {
 			return err
@@ -325,8 +325,8 @@ func reconcileExternalListenersConfig(c client.Client, cluster *v1beta1.KafkaClu
 func validateExternalListeners(config *v1beta1.ListenersConfig) error {
 	if config != nil {
 		for _, eListener := range config.ExternalListeners {
-			if eListener.Hostname == "" {
-				return errorfactory.New(errorfactory.KafkaConfigError{}, errors.New("Cannot use BringYourOwnLoadBalancer config without ExternalListener.HostnameOverride"), "")
+			if strings.TrimSpace(eListener.Hostname) == "" {
+				return errorfactory.New(errorfactory.KafkaConfigError{}, errors.New("Cannot use useExistingLoadBalancer config without ExternalListener.HostnameOverride"), "")
 			}
 		}
 	}
@@ -336,7 +336,7 @@ func validateExternalListeners(config *v1beta1.ListenersConfig) error {
 func reconcileHostnameForExternalListeners(config *v1beta1.ListenersConfig, loadBalancerIp string) {
 	if config != nil {
 		for idx, eListener := range config.ExternalListeners {
-			if eListener.Hostname == "" {
+			if strings.TrimSpace(eListener.Hostname) == "" {
 				config.ExternalListeners[idx].Hostname = loadBalancerIp
 			}
 		}

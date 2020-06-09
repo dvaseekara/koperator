@@ -160,7 +160,7 @@ type EnvoyConfig struct {
 	Tolerations              []corev1.Toleration           `json:"tolerations,omitempty"`
 	Annotations              map[string]string             `json:"annotations,omitempty"`
 	LoadBalancerSourceRanges []string                      `json:"loadBalancerSourceRanges,omitempty"`
-	BringYourOwnLB           bool                          `json:"bringYourOwnLoadBalancer,omitempty"`
+	UseExistingLB            bool                          `json:"useExistingLoadBalancer,omitempty"`
 	EnvoyPerBrokerGroup      bool                          `json:"dedicatedEnvoyPerBrokerGroup,omitempty"`
 	NodeAffinity             *corev1.NodeAffinity          `json:"nodeAffinity,omitempty"`
 	Id                       string                        `json:"id,omitempty"`
