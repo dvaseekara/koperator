@@ -39,7 +39,7 @@ func labelSelector(envoyConfig *v1beta1.EnvoyConfig) map[string]string {
 		return map[string]string{"app": componentName}
 	} else {
 		return map[string]string{
-			"app": componentName,
+			"app":   componentName,
 			"group": fmt.Sprintf("%s-%s", componentName, envoyConfig.Id),
 		}
 	}

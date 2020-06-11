@@ -93,8 +93,8 @@ func GetExternalDNSNames(cluster *v1beta1.KafkaCluster) (dnsNames []string) {
 func GetExternalDNSNamesForBroker(globalConfig *v1beta1.ListenersConfig, brokerConfig *v1beta1.ListenersConfig) (dnsNames []string) {
 	dnsNames = make([]string, 0)
 	for _, externalListenerConfig := range MergeListenerConfigs(globalConfig, brokerConfig).ExternalListeners {
-		if externalListenerConfig.Hostname != "" {
-			dnsNames = append(dnsNames, externalListenerConfig.Hostname)
+		if externalListenerConfig.HostnameOverride != "" {
+			dnsNames = append(dnsNames, externalListenerConfig.HostnameOverride)
 		}
 	}
 	return

@@ -56,6 +56,7 @@ func Delete(log logr.Logger, client runtimeClient.Client, target runtime.Object)
 			)
 		}
 	} else if apierrors.IsNotFound(err) {
+		log.V(1).Info("resource not found for delete")
 		return nil
 	} else {
 		return errorfactory.New(

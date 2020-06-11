@@ -271,7 +271,7 @@ type AlertManagerConfig struct {
 type ExternalListenerConfig struct {
 	CommonListenerSpec   `json:",inline"`
 	ExternalStartingPort int32             `json:"externalStartingPort"`
-	Hostname             string            `json:"hostnameOverride,omitempty"`
+	HostnameOverride     string            `json:"hostnameOverride,omitempty"`
 	ServiceAnnotations   map[string]string `json:"serviceAnnotations,omitempty"`
 }
 

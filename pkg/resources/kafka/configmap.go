@@ -127,7 +127,7 @@ func generateAdvertisedListenerConfig(id int32, l *v1beta1.ListenersConfig, doma
 	advertisedListenerConfig := []string{}
 	for _, eListener := range l.ExternalListeners {
 		advertisedListenerConfig = append(advertisedListenerConfig,
-			fmt.Sprintf("%s://%s:%d", strings.ToUpper(eListener.Name), eListener.Hostname, eListener.ExternalStartingPort+id))
+			fmt.Sprintf("%s://%s:%d", strings.ToUpper(eListener.Name), eListener.HostnameOverride, eListener.ExternalStartingPort+id))
 	}
 	for _, iListener := range l.InternalListeners {
 		if headlessServiceEnabled {
