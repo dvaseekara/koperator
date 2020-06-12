@@ -77,8 +77,8 @@ func (r *Reconciler) getGlobalObjects(log logr.Logger) []runtime.Object {
 
 func (r *Reconciler) getBrokerConfigSpecificObjects(log logr.Logger) []runtime.Object {
 	var objects []runtime.Object
-	for configId, brokerConfig := range r.KafkaCluster.Spec.BrokerConfigGroups {
-		objects = append(objects, r.getResources(log, configId, brokerConfig)...)
+	for configId, brokerConfigGroup := range r.KafkaCluster.Spec.BrokerConfigGroups {
+		objects = append(objects, r.getResources(log, configId, brokerConfigGroup)...)
 	}
 	return objects
 }

@@ -260,8 +260,8 @@ func HasExternalListeners(kafkaClusterSpec v1beta1.KafkaClusterSpec) bool {
 		return true
 	}
 	// No global External Listener. All BrokerGroups must declare at least 1 ExternalListener
-	for _, brokerConfig := range kafkaClusterSpec.BrokerConfigGroups {
-		if brokerConfig.ListenersConfig == nil || brokerConfig.ListenersConfig.ExternalListeners == nil {
+	for _, brokerConfigGroup := range kafkaClusterSpec.BrokerConfigGroups {
+		if brokerConfigGroup.ListenersConfig == nil || brokerConfigGroup.ListenersConfig.ExternalListeners == nil {
 			return false
 		}
 	}

@@ -1180,12 +1180,12 @@ spec:
                     type: object
                   type: array
                 useExistingLoadBalancer:
-                  description: Set this to true if you dont want the operator to create
+                  description: Set this to true if you don't want the operator to create
                     a LoadBalancer service. This is recommended if you want to use your
                     own LoadBalancer.
                   type: boolean
                 dedicatedEnvoyPerBrokerGroup:
-                  description: Set this to true if you dont want the operator to create
+                  description: Set this to true if you don't want the operator to create
                     one Envoy deployment for each BrokerConifgGrop. This is recommended
                     if you want to keep the brokers and the envoy in the same group/rack.
                   type: boolean

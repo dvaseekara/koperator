@@ -1183,7 +1183,7 @@ spec:
                     type: string
                   type: object
                 useExistingLBLoadBalancer:
-                  description: Set this to true if you dont want the operator to create
+                  description: Set this to true if you don't want the operator to create
                     a LoadBalancer service. This is recommended if you want to use your
                     own LoadBalancer.
                   type: boolean

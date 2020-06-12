@@ -302,15 +302,15 @@ func reconcileExternalListenersConfig(c client.Client, cluster *v1beta1.KafkaClu
 		// Reconcile IPs for Global Listeners Config
 		reconcileHostnameForExternalListeners(&cluster.Spec.ListenersConfig, lbIP)
 		// Reconcile IPs for Broker Listeners Config
-		for _, brokerConfig := range cluster.Spec.BrokerConfigGroups {
-			reconcileHostnameForExternalListeners(brokerConfig.ListenersConfig, lbIP)
+		for _, brokerConfigGroup := range cluster.Spec.BrokerConfigGroups {
+			reconcileHostnameForExternalListeners(brokerConfigGroup.ListenersConfig, lbIP)
 		}
 	}
 
 	// All external listeners configs must have a valid HostnameOverride.
 	allListenersConfig := []*v1beta1.ListenersConfig{cluster.Spec.ListenersConfig.DeepCopy()}
-	for _, brokerConfig := range cluster.Spec.BrokerConfigGroups {
-		allListenersConfig = append(allListenersConfig, brokerConfig.ListenersConfig)
+	for _, brokerConfigGroup := range cluster.Spec.BrokerConfigGroups {
+		allListenersConfig = append(allListenersConfig, brokerConfigGroup.ListenersConfig)
 	}
 	for _, listenerConfig := range allListenersConfig {
 		err := validateExternalListeners(listenerConfig)
