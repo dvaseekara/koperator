@@ -1,4 +1,6 @@
 {{- if .Values.crd.enabled }}
+
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -8,21 +10,21 @@ metadata:
   name: kafkaclusters.kafka.banzaicloud.io
 spec:
   additionalPrinterColumns:
-    - JSONPath: .status.state
-      name: Cluster state
-      type: string
-    - JSONPath: .status.alertCount
-      name: Cluster alert count
-      type: integer
-    - JSONPath: .status.rollingUpgradeStatus.lastSuccess
-      name: Last successful upgrade
-      type: string
-    - JSONPath: .status.rollingUpgradeStatus.errorCount
-      name: Upgrade error count
-      type: string
-    - JSONPath: .metadata.creationTimestamp
-      name: Age
-      type: date
+  - JSONPath: .status.state
+    name: Cluster state
+    type: string
+  - JSONPath: .status.alertCount
+    name: Cluster alert count
+    type: integer
+  - JSONPath: .status.rollingUpgradeStatus.lastSuccess
+    name: Last successful upgrade
+    type: string
+  - JSONPath: .status.rollingUpgradeStatus.errorCount
+    name: Upgrade error count
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
   group: kafka.banzaicloud.io
   names:
     kind: KafkaCluster
@@ -83,6 +85,16 @@ spec:
                     type: object
                   config:
                     type: string
+                  envoy:
+                    description: Custom properties for the dedicated envoy deployment
+                      for this broker configuration group. Applicable only if envoy.dedicatedEnvoyPerBrokerGroup
+                      is set to true.
+                    properties:
+                      replicas:
+                        format: int32
+                        minimum: 1
+                        type: integer
+                    type: object
                   image:
                     type: string
                   imagePullSecrets:
@@ -100,6 +112,105 @@ spec:
                     type: string
                   kafkaJvmPerfOpts:
                     type: string
+                  listenersConfig:
+                    description: ListenersConfig defines the broker specific Kafka
+                      listener types. These will override the global ListenersConfig
+                    properties:
+                      externalListeners:
+                        items:
+                          description: ExternalListenerConfig defines the external
+                            listener config for Kafka
+                          properties:
+                            containerPort:
+                              format: int32
+                              type: integer
+                            externalStartingPort:
+                              description: The broker port is computed as the sum
+                                of the externalStartingPort and the broker id. For
+                                consistence, it is recommended that externalStartingPort
+                                has the same value across all the brokerConfigGroups.
+                              format: int32
+                              type: integer
+                            hostnameOverride:
+                              type: string
+                            name:
+                              type: string
+                            serviceAnnotations:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            type:
+                              type: string
+                          required:
+                          - containerPort
+                          - externalStartingPort
+                          - name
+                          - type
+                          type: object
+                        type: array
+                      internalListeners:
+                        items:
+                          description: InternalListenerConfig defines the internal
+                            listener config for Kafka
+                          properties:
+                            containerPort:
+                              format: int32
+                              type: integer
+                            name:
+                              type: string
+                            type:
+                              type: string
+                            usedForControllerCommunication:
+                              type: boolean
+                            usedForInnerBrokerCommunication:
+                              type: boolean
+                          required:
+                          - containerPort
+                          - name
+                          - type
+                          - usedForInnerBrokerCommunication
+                          type: object
+                        type: array
+                      serviceAnnotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      sslSecrets:
+                        description: SSLSecrets defines the Kafka SSL secrets
+                        properties:
+                          create:
+                            type: boolean
+                          issuerRef:
+                            description: ObjectReference is a reference to an object
+                              with a given name, kind and group.
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          jksPasswordName:
+                            type: string
+                          pkiBackend:
+                            description: PKIBackend represents an interface implementing
+                              the PKIManager
+                            enum:
+                            - cert-manager
+                            - vault
+                            type: string
+                          tlsSecretName:
+                            type: string
+                        required:
+                        - jksPasswordName
+                        - tlsSecretName
+                        type: object
+                    required:
+                    - internalListeners
+                    type: object
                   nodeAffinity:
                     description: Node affinity is a group of node affinity scheduling
                       rules.
@@ -158,8 +269,8 @@ spec:
                                           type: string
                                         type: array
                                     required:
-                                      - key
-                                      - operator
+                                    - key
+                                    - operator
                                     type: object
                                   type: array
                                 matchFields:
@@ -194,8 +305,8 @@ spec:
                                           type: string
                                         type: array
                                     required:
-                                      - key
-                                      - operator
+                                    - key
+                                    - operator
                                     type: object
                                   type: array
                               type: object
@@ -205,8 +316,8 @@ spec:
                               format: int32
                               type: integer
                           required:
-                            - preference
-                            - weight
+                          - preference
+                          - weight
                           type: object
                         type: array
                       requiredDuringSchedulingIgnoredDuringExecution:
@@ -258,8 +369,8 @@ spec:
                                           type: string
                                         type: array
                                     required:
-                                      - key
-                                      - operator
+                                    - key
+                                    - operator
                                     type: object
                                   type: array
                                 matchFields:
@@ -294,14 +405,14 @@ spec:
                                           type: string
                                         type: array
                                     required:
-                                      - key
-                                      - operator
+                                    - key
+                                    - operator
                                     type: object
                                   type: array
                               type: object
                             type: array
                         required:
-                          - nodeSelectorTerms
+                        - nodeSelectorTerms
                         type: object
                     type: object
                   nodeSelector:
@@ -315,8 +426,8 @@ spec:
                       limits:
                         additionalProperties:
                           anyOf:
-                            - type: integer
-                            - type: string
+                          - type: integer
+                          - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: 'Limits describes the maximum amount of compute
@@ -325,8 +436,8 @@ spec:
                       requests:
                         additionalProperties:
                           anyOf:
-                            - type: integer
-                            - type: string
+                          - type: integer
+                          - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: 'Requests describes the minimum amount of compute
@@ -386,8 +497,8 @@ spec:
                                     referenced
                                   type: string
                               required:
-                                - kind
-                                - name
+                              - kind
+                              - name
                               type: object
                             resources:
                               description: 'Resources represents the minimum resources
@@ -396,8 +507,8 @@ spec:
                                 limits:
                                   additionalProperties:
                                     anyOf:
-                                      - type: integer
-                                      - type: string
+                                    - type: integer
+                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                     x-kubernetes-int-or-string: true
                                   description: 'Limits describes the maximum amount
@@ -406,8 +517,8 @@ spec:
                                 requests:
                                   additionalProperties:
                                     anyOf:
-                                      - type: integer
-                                      - type: string
+                                    - type: integer
+                                    - type: string
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                     x-kubernetes-int-or-string: true
                                   description: 'Requests describes the minimum amount
@@ -449,8 +560,8 @@ spec:
                                           type: string
                                         type: array
                                     required:
-                                      - key
-                                      - operator
+                                    - key
+                                    - operator
                                     type: object
                                   type: array
                                 matchLabels:
@@ -479,8 +590,8 @@ spec:
                               type: string
                           type: object
                       required:
-                        - mountPath
-                        - pvcSpec
+                      - mountPath
+                      - pvcSpec
                       type: object
                     type: array
                   tolerations:
@@ -541,6 +652,16 @@ spec:
                         type: object
                       config:
                         type: string
+                      envoy:
+                        description: Custom properties for the dedicated envoy deployment
+                          for this broker configuration group. Applicable only if
+                          envoy.dedicatedEnvoyPerBrokerGroup is set to true.
+                        properties:
+                          replicas:
+                            format: int32
+                            minimum: 1
+                            type: integer
+                        type: object
                       image:
                         type: string
                       imagePullSecrets:
@@ -559,6 +680,105 @@ spec:
                         type: string
                       kafkaJvmPerfOpts:
                         type: string
+                      listenersConfig:
+                        description: ListenersConfig defines the broker specific Kafka
+                          listener types. These will override the global ListenersConfig
+                        properties:
+                          externalListeners:
+                            items:
+                              description: ExternalListenerConfig defines the external
+                                listener config for Kafka
+                              properties:
+                                containerPort:
+                                  format: int32
+                                  type: integer
+                                externalStartingPort:
+                                  description: The broker port is computed as the
+                                    sum of the externalStartingPort and the broker
+                                    id. For consistence, it is recommended that externalStartingPort
+                                    has the same value across all the brokerConfigGroups.
+                                  format: int32
+                                  type: integer
+                                hostnameOverride:
+                                  type: string
+                                name:
+                                  type: string
+                                serviceAnnotations:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                type:
+                                  type: string
+                              required:
+                              - containerPort
+                              - externalStartingPort
+                              - name
+                              - type
+                              type: object
+                            type: array
+                          internalListeners:
+                            items:
+                              description: InternalListenerConfig defines the internal
+                                listener config for Kafka
+                              properties:
+                                containerPort:
+                                  format: int32
+                                  type: integer
+                                name:
+                                  type: string
+                                type:
+                                  type: string
+                                usedForControllerCommunication:
+                                  type: boolean
+                                usedForInnerBrokerCommunication:
+                                  type: boolean
+                              required:
+                              - containerPort
+                              - name
+                              - type
+                              - usedForInnerBrokerCommunication
+                              type: object
+                            type: array
+                          serviceAnnotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          sslSecrets:
+                            description: SSLSecrets defines the Kafka SSL secrets
+                            properties:
+                              create:
+                                type: boolean
+                              issuerRef:
+                                description: ObjectReference is a reference to an
+                                  object with a given name, kind and group.
+                                properties:
+                                  group:
+                                    type: string
+                                  kind:
+                                    type: string
+                                  name:
+                                    type: string
+                                required:
+                                - name
+                                type: object
+                              jksPasswordName:
+                                type: string
+                              pkiBackend:
+                                description: PKIBackend represents an interface implementing
+                                  the PKIManager
+                                enum:
+                                - cert-manager
+                                - vault
+                                type: string
+                              tlsSecretName:
+                                type: string
+                            required:
+                            - jksPasswordName
+                            - tlsSecretName
+                            type: object
+                        required:
+                        - internalListeners
+                        type: object
                       nodeAffinity:
                         description: Node affinity is a group of node affinity scheduling
                           rules.
@@ -619,8 +839,8 @@ spec:
                                               type: string
                                             type: array
                                         required:
-                                          - key
-                                          - operator
+                                        - key
+                                        - operator
                                         type: object
                                       type: array
                                     matchFields:
@@ -657,8 +877,8 @@ spec:
                                               type: string
                                             type: array
                                         required:
-                                          - key
-                                          - operator
+                                        - key
+                                        - operator
                                         type: object
                                       type: array
                                   type: object
@@ -668,8 +888,8 @@ spec:
                                   format: int32
                                   type: integer
                               required:
-                                - preference
-                                - weight
+                              - preference
+                              - weight
                               type: object
                             type: array
                           requiredDuringSchedulingIgnoredDuringExecution:
@@ -724,8 +944,8 @@ spec:
                                               type: string
                                             type: array
                                         required:
-                                          - key
-                                          - operator
+                                        - key
+                                        - operator
                                         type: object
                                       type: array
                                     matchFields:
@@ -762,14 +982,14 @@ spec:
                                               type: string
                                             type: array
                                         required:
-                                          - key
-                                          - operator
+                                        - key
+                                        - operator
                                         type: object
                                       type: array
                                   type: object
                                 type: array
                             required:
-                              - nodeSelectorTerms
+                            - nodeSelectorTerms
                             type: object
                         type: object
                       nodeSelector:
@@ -783,8 +1003,8 @@ spec:
                           limits:
                             additionalProperties:
                               anyOf:
-                                - type: integer
-                                - type: string
+                              - type: integer
+                              - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                             description: 'Limits describes the maximum amount of compute
@@ -793,8 +1013,8 @@ spec:
                           requests:
                             additionalProperties:
                               anyOf:
-                                - type: integer
-                                - type: string
+                              - type: integer
+                              - type: string
                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                               x-kubernetes-int-or-string: true
                             description: 'Requests describes the minimum amount of
@@ -856,8 +1076,8 @@ spec:
                                         referenced
                                       type: string
                                   required:
-                                    - kind
-                                    - name
+                                  - kind
+                                  - name
                                   type: object
                                 resources:
                                   description: 'Resources represents the minimum resources
@@ -866,8 +1086,8 @@ spec:
                                     limits:
                                       additionalProperties:
                                         anyOf:
-                                          - type: integer
-                                          - type: string
+                                        - type: integer
+                                        - type: string
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                         x-kubernetes-int-or-string: true
                                       description: 'Limits describes the maximum amount
@@ -876,8 +1096,8 @@ spec:
                                     requests:
                                       additionalProperties:
                                         anyOf:
-                                          - type: integer
-                                          - type: string
+                                        - type: integer
+                                        - type: string
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                         x-kubernetes-int-or-string: true
                                       description: 'Requests describes the minimum
@@ -924,8 +1144,8 @@ spec:
                                               type: string
                                             type: array
                                         required:
-                                          - key
-                                          - operator
+                                        - key
+                                        - operator
                                         type: object
                                       type: array
                                     matchLabels:
@@ -954,8 +1174,8 @@ spec:
                                   type: string
                               type: object
                           required:
-                            - mountPath
-                            - pvcSpec
+                          - mountPath
+                          - pvcSpec
                           type: object
                         type: array
                       tolerations:
@@ -1008,7 +1228,7 @@ spec:
                   readOnlyConfig:
                     type: string
                 required:
-                  - id
+                - id
                 type: object
               type: array
             clusterImage:
@@ -1040,7 +1260,7 @@ spec:
                         the Operator waits for the task
                       type: integer
                   required:
-                    - RetryDurationMinutes
+                  - RetryDurationMinutes
                   type: object
                 image:
                   type: string
@@ -1068,8 +1288,8 @@ spec:
                     limits:
                       additionalProperties:
                         anyOf:
-                          - type: integer
-                          - type: string
+                        - type: integer
+                        - type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       description: 'Limits describes the maximum amount of compute
@@ -1078,8 +1298,8 @@ spec:
                     requests:
                       additionalProperties:
                         anyOf:
-                          - type: integer
-                          - type: string
+                        - type: integer
+                        - type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       description: 'Requests describes the minimum amount of compute
@@ -1141,8 +1361,8 @@ spec:
                       minimum: 2
                       type: integer
                   required:
-                    - partitions
-                    - replicationFactor
+                  - partitions
+                  - replicationFactor
                   type: object
               type: object
             envoyConfig:
@@ -1152,6 +1372,12 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                dedicatedEnvoyPerBrokerGroup:
+                  description: When set to true operator creates one envoy deployment
+                    for each broker group.
+                  type: boolean
+                id:
+                  type: string
                 image:
                   type: string
                 imagePullSecrets:
@@ -1173,6 +1399,201 @@ spec:
                   items:
                     type: string
                   type: array
+                nodeAffinity:
+                  description: Node affinity is a group of node affinity scheduling
+                    rules.
+                  properties:
+                    preferredDuringSchedulingIgnoredDuringExecution:
+                      description: The scheduler will prefer to schedule pods to nodes
+                        that satisfy the affinity expressions specified by this field,
+                        but it may choose a node that violates one or more of the
+                        expressions. The node that is most preferred is the one with
+                        the greatest sum of weights, i.e. for each node that meets
+                        all of the scheduling requirements (resource request, requiredDuringScheduling
+                        affinity expressions, etc.), compute a sum by iterating through
+                        the elements of this field and adding "weight" to the sum
+                        if the node matches the corresponding matchExpressions; the
+                        node(s) with the highest sum are the most preferred.
+                      items:
+                        description: An empty preferred scheduling term matches all
+                          objects with implicit weight 0 (i.e. it's a no-op). A null
+                          preferred scheduling term matches no objects (i.e. is also
+                          a no-op).
+                        properties:
+                          preference:
+                            description: A node selector term, associated with the
+                              corresponding weight.
+                            properties:
+                              matchExpressions:
+                                description: A list of node selector requirements
+                                  by node's labels.
+                                items:
+                                  description: A node selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: The label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: Represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                      type: string
+                                    values:
+                                      description: An array of string values. If the
+                                        operator is In or NotIn, the values array
+                                        must be non-empty. If the operator is Exists
+                                        or DoesNotExist, the values array must be
+                                        empty. If the operator is Gt or Lt, the values
+                                        array must have a single element, which will
+                                        be interpreted as an integer. This array is
+                                        replaced during a strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                              matchFields:
+                                description: A list of node selector requirements
+                                  by node's fields.
+                                items:
+                                  description: A node selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: The label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: Represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                      type: string
+                                    values:
+                                      description: An array of string values. If the
+                                        operator is In or NotIn, the values array
+                                        must be non-empty. If the operator is Exists
+                                        or DoesNotExist, the values array must be
+                                        empty. If the operator is Gt or Lt, the values
+                                        array must have a single element, which will
+                                        be interpreted as an integer. This array is
+                                        replaced during a strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                            type: object
+                          weight:
+                            description: Weight associated with matching the corresponding
+                              nodeSelectorTerm, in the range 1-100.
+                            format: int32
+                            type: integer
+                        required:
+                        - preference
+                        - weight
+                        type: object
+                      type: array
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      description: If the affinity requirements specified by this
+                        field are not met at scheduling time, the pod will not be
+                        scheduled onto the node. If the affinity requirements specified
+                        by this field cease to be met at some point during pod execution
+                        (e.g. due to an update), the system may or may not try to
+                        eventually evict the pod from its node.
+                      properties:
+                        nodeSelectorTerms:
+                          description: Required. A list of node selector terms. The
+                            terms are ORed.
+                          items:
+                            description: A null or empty node selector term matches
+                              no objects. The requirements of them are ANDed. The
+                              TopologySelectorTerm type implements a subset of the
+                              NodeSelectorTerm.
+                            properties:
+                              matchExpressions:
+                                description: A list of node selector requirements
+                                  by node's labels.
+                                items:
+                                  description: A node selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: The label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: Represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                      type: string
+                                    values:
+                                      description: An array of string values. If the
+                                        operator is In or NotIn, the values array
+                                        must be non-empty. If the operator is Exists
+                                        or DoesNotExist, the values array must be
+                                        empty. If the operator is Gt or Lt, the values
+                                        array must have a single element, which will
+                                        be interpreted as an integer. This array is
+                                        replaced during a strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                              matchFields:
+                                description: A list of node selector requirements
+                                  by node's fields.
+                                items:
+                                  description: A node selector requirement is a selector
+                                    that contains values, a key, and an operator that
+                                    relates the key and values.
+                                  properties:
+                                    key:
+                                      description: The label key that the selector
+                                        applies to.
+                                      type: string
+                                    operator:
+                                      description: Represents a key's relationship
+                                        to a set of values. Valid operators are In,
+                                        NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                      type: string
+                                    values:
+                                      description: An array of string values. If the
+                                        operator is In or NotIn, the values array
+                                        must be non-empty. If the operator is Exists
+                                        or DoesNotExist, the values array must be
+                                        empty. If the operator is Gt or Lt, the values
+                                        array must have a single element, which will
+                                        be interpreted as an integer. This array is
+                                        replaced during a strategic merge patch.
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - key
+                                  - operator
+                                  type: object
+                                type: array
+                            type: object
+                          type: array
+                      required:
+                      - nodeSelectorTerms
+                      type: object
+                  type: object
                 nodeSelector:
                   additionalProperties:
                     type: string
@@ -1188,8 +1609,8 @@ spec:
                     limits:
                       additionalProperties:
                         anyOf:
-                          - type: integer
-                          - type: string
+                        - type: integer
+                        - type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       description: 'Limits describes the maximum amount of compute
@@ -1198,8 +1619,8 @@ spec:
                     requests:
                       additionalProperties:
                         anyOf:
-                          - type: integer
-                          - type: string
+                        - type: integer
+                        - type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       description: 'Requests describes the minimum amount of compute
@@ -1249,6 +1670,11 @@ spec:
                         type: string
                     type: object
                   type: array
+                useExistingLoadBalancer:
+                  description: Set this to true if you don't want the operator to
+                    create a LoadBalancer service. This is recommended if you want
+                    to use your own LoadBalancer created externally in your infrastructure.
+                  type: boolean
               type: object
             envs:
               items:
@@ -1286,7 +1712,7 @@ spec:
                               must be defined
                             type: boolean
                         required:
-                          - key
+                        - key
                         type: object
                       fieldRef:
                         description: 'Selects a field of the pod: supports metadata.name,
@@ -1303,7 +1729,7 @@ spec:
                               API version.
                             type: string
                         required:
-                          - fieldPath
+                        - fieldPath
                         type: object
                       resourceFieldRef:
                         description: 'Selects a resource of the container: only resources
@@ -1317,8 +1743,8 @@ spec:
                             type: string
                           divisor:
                             anyOf:
-                              - type: integer
-                              - type: string
+                            - type: integer
+                            - type: string
                             description: Specifies the output format of the exposed
                               resources, defaults to "1"
                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
@@ -1327,7 +1753,7 @@ spec:
                             description: 'Required: resource to select'
                             type: string
                         required:
-                          - resource
+                        - resource
                         type: object
                       secretKeyRef:
                         description: Selects a key of a secret in the pod's namespace
@@ -1345,19 +1771,19 @@ spec:
                               be defined
                             type: boolean
                         required:
-                          - key
+                        - key
                         type: object
                     type: object
                 required:
-                  - name
+                - name
                 type: object
               type: array
             headlessServiceEnabled:
               type: boolean
             ingressController:
               enum:
-                - envoy
-                - istioingress
+              - envoy
+              - istioingress
               type: string
             istioIngressConfig:
               description: IstioIngressConfig defines the config for the Istio Ingress
@@ -1463,8 +1889,8 @@ spec:
                     limits:
                       additionalProperties:
                         anyOf:
-                          - type: integer
-                          - type: string
+                        - type: integer
+                        - type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       description: 'Limits describes the maximum amount of compute
@@ -1473,8 +1899,8 @@ spec:
                     requests:
                       additionalProperties:
                         anyOf:
-                          - type: integer
-                          - type: string
+                        - type: integer
+                        - type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
                       description: 'Requests describes the minimum amount of compute
@@ -1541,6 +1967,10 @@ spec:
                         format: int32
                         type: integer
                       externalStartingPort:
+                        description: The broker port is computed as the sum of the
+                          externalStartingPort and the broker id. For consistence,
+                          it is recommended that externalStartingPort has the same
+                          value across all the brokerConfigGroups.
                         format: int32
                         type: integer
                       hostnameOverride:
@@ -1554,10 +1984,10 @@ spec:
                       type:
                         type: string
                     required:
-                      - containerPort
-                      - externalStartingPort
-                      - name
-                      - type
+                    - containerPort
+                    - externalStartingPort
+                    - name
+                    - type
                     type: object
                   type: array
                 internalListeners:
@@ -1577,10 +2007,10 @@ spec:
                       usedForInnerBrokerCommunication:
                         type: boolean
                     required:
-                      - containerPort
-                      - name
-                      - type
-                      - usedForInnerBrokerCommunication
+                    - containerPort
+                    - name
+                    - type
+                    - usedForInnerBrokerCommunication
                     type: object
                   type: array
                 serviceAnnotations:
@@ -1603,7 +2033,7 @@ spec:
                         name:
                           type: string
                       required:
-                        - name
+                      - name
                       type: object
                     jksPasswordName:
                       type: string
@@ -1611,17 +2041,17 @@ spec:
                       description: PKIBackend represents an interface implementing
                         the PKIManager
                       enum:
-                        - cert-manager
-                        - vault
+                      - cert-manager
+                      - vault
                       type: string
                     tlsSecretName:
                       type: string
                   required:
-                    - jksPasswordName
-                    - tlsSecretName
+                  - jksPasswordName
+                  - tlsSecretName
                   type: object
               required:
-                - internalListeners
+              - internalListeners
               type: object
             monitoringConfig:
               description: MonitoringConfig defines the config for monitoring Kafka
@@ -1636,8 +2066,8 @@ spec:
                 pathToJar:
                   type: string
               required:
-                - jmxImage
-                - pathToJar
+              - jmxImage
+              - pathToJar
               type: object
             oneBrokerPerNode:
               type: boolean
@@ -1652,7 +2082,7 @@ spec:
                     type: string
                   type: array
               required:
-                - labels
+              - labels
               type: object
             readOnlyConfig:
               type: string
@@ -1663,7 +2093,7 @@ spec:
                 failureThreshold:
                   type: integer
               required:
-                - failureThreshold
+              - failureThreshold
               type: object
             vaultConfig:
               description: VaultConfig defines the configuration for a vault PKI backend
@@ -1677,10 +2107,10 @@ spec:
                 userStore:
                   type: string
               required:
-                - authRole
-                - issuePath
-                - pkiPath
-                - userStore
+              - authRole
+              - issuePath
+              - pkiPath
+              - userStore
               type: object
             zkAddresses:
               description: ZKAddresses specifies the ZooKeeper connection string in
@@ -1695,13 +2125,13 @@ spec:
                 the global ZooKeeper namespace.
               type: string
           required:
-            - brokers
-            - cruiseControlConfig
-            - headlessServiceEnabled
-            - listenersConfig
-            - oneBrokerPerNode
-            - rollingUpgradeConfig
-            - zkAddresses
+          - brokers
+          - cruiseControlConfig
+          - headlessServiceEnabled
+          - listenersConfig
+          - oneBrokerPerNode
+          - rollingUpgradeConfig
+          - zkAddresses
           type: object
         status:
           description: KafkaClusterStatus defines the observed state of KafkaCluster
@@ -1754,24 +2184,24 @@ spec:
                                 happened with CC disk rebalance
                               type: string
                           required:
-                            - cruiseControlVolumeState
-                            - errorMessage
+                          - cruiseControlVolumeState
+                          - errorMessage
                           type: object
                         description: VolumeStates holds the information about the
                           CC disk rebalance states and tasks
                         type: object
                     required:
-                      - cruiseControlState
-                      - errorMessage
+                    - cruiseControlState
+                    - errorMessage
                     type: object
                   rackAwarenessState:
                     description: RackAwarenessState holds info about rack awareness
                       status
                     type: string
                 required:
-                  - configurationState
-                  - gracefulActionState
-                  - rackAwarenessState
+                - configurationState
+                - gracefulActionState
+                - rackAwarenessState
                 type: object
               type: object
             cruiseControlTopicStatus:
@@ -1786,22 +2216,22 @@ spec:
                 lastSuccess:
                   type: string
               required:
-                - errorCount
-                - lastSuccess
+              - errorCount
+              - lastSuccess
               type: object
             state:
               description: ClusterState holds info about the cluster state
               type: string
           required:
-            - alertCount
-            - state
+          - alertCount
+          - state
           type: object
       type: object
   version: v1beta1
   versions:
-    - name: v1beta1
-      served: true
-      storage: true
+  - name: v1beta1
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""
@@ -1856,7 +2286,7 @@ spec:
                 namespace:
                   type: string
               required:
-                - name
+              - name
               type: object
             config:
               additionalProperties:
@@ -1871,10 +2301,10 @@ spec:
               format: int32
               type: integer
           required:
-            - clusterRef
-            - name
-            - partitions
-            - replicationFactor
+          - clusterRef
+          - name
+          - partitions
+          - replicationFactor
           type: object
         status:
           description: KafkaTopicStatus defines the observed state of KafkaTopic
@@ -1883,14 +2313,14 @@ spec:
               description: TopicState defines the state of a KafkaTopic
               type: string
           required:
-            - state
+          - state
           type: object
       type: object
   version: v1alpha1
   versions:
-    - name: v1alpha1
-      served: true
-      storage: true
+  - name: v1alpha1
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""
@@ -1945,7 +2375,7 @@ spec:
                 namespace:
                   type: string
               required:
-                - name
+              - name
               type: object
             createCert:
               type: boolean
@@ -1968,16 +2398,16 @@ spec:
                     name:
                       type: string
                   required:
-                    - name
+                  - name
                   type: object
                 pkiBackend:
                   enum:
-                    - cert-manager
-                    - vault
+                  - cert-manager
+                  - vault
                   type: string
               required:
-                - issuerRef
-                - pkiBackend
+              - issuerRef
+              - pkiBackend
               type: object
             secretName:
               type: string
@@ -1988,28 +2418,28 @@ spec:
                   accessType:
                     description: KafkaAccessType hold info about Kafka ACL
                     enum:
-                      - read
-                      - write
+                    - read
+                    - write
                     type: string
                   patternType:
                     description: KafkaPatternType hold the Resource Pattern Type of
                       kafka ACL
                     enum:
-                      - literal
-                      - match
-                      - prefixed
-                      - any
+                    - literal
+                    - match
+                    - prefixed
+                    - any
                     type: string
                   topicName:
                     type: string
                 required:
-                  - accessType
-                  - topicName
+                - accessType
+                - topicName
                 type: object
               type: array
           required:
-            - clusterRef
-            - secretName
+          - clusterRef
+          - secretName
           type: object
         status:
           description: KafkaUserStatus defines the observed state of KafkaUser
@@ -2022,14 +2452,14 @@ spec:
               description: UserState defines the state of a KafkaUser
               type: string
           required:
-            - state
+          - state
           type: object
       type: object
   version: v1alpha1
   versions:
-    - name: v1alpha1
-      served: true
-      storage: true
+  - name: v1alpha1
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""
@@ -2037,4 +2467,4 @@ status:
   conditions: []
   storedVersions: []
 
-  {{- end }}
+{{- end }}
