@@ -16,7 +16,6 @@ package util
 
 import (
 	"fmt"
-	"github.com/go-logr/logr"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -24,7 +23,8 @@ import (
 	"strings"
 	"time"
 
-	emperror "emperror.dev/errors"
+	"emperror.dev/errors"
+	"github.com/go-logr/logr"
 	"github.com/imdario/mergo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -221,7 +221,7 @@ func GetBrokerConfig(broker v1beta1.Broker, clusterSpec v1beta1.KafkaClusterSpec
 
 	err := mergo.Merge(bConfig, clusterSpec.BrokerConfigGroups[broker.BrokerConfigGroup], mergo.WithAppendSlice)
 	if err != nil {
-		return nil, emperror.WrapIf(err, "could not merge brokerConfig with ConfigGroup")
+		return nil, errors.WrapIf(err, "could not merge brokerConfig with ConfigGroup")
 	}
 
 	bConfig.StorageConfigs = dedupStorageConfigs(bConfig.StorageConfigs)
