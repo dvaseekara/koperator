@@ -109,6 +109,7 @@ rm /var/run/wait/do-not-exit-yet`}
 			util.MergeLabels(
 				LabelsForKafka(r.KafkaCluster.Name),
 				map[string]string{"brokerId": fmt.Sprintf("%d", id)},
+				map[string]string{"configGroup": util.GetBrokerSpecFromId(r.KafkaCluster.Spec, id, log).BrokerConfigGroup},
 			),
 			brokerConfig.GetBrokerAnnotations(),
 			r.KafkaCluster,

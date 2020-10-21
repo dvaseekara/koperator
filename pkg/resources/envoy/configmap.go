@@ -36,15 +36,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (r *Reconciler) configMap(log logr.Logger) runtime.Object {
+func (r *Reconciler) configMap(log logr.Logger, envoyConfig *v1beta1.EnvoyConfig) runtime.Object {
 	configMap := &corev1.ConfigMap{
-		ObjectMeta: templates.ObjectMeta(envoyVolumeAndConfigName, labelSelector, r.KafkaCluster),
-		Data:       map[string]string{"envoy.yaml": GenerateEnvoyConfig(r.KafkaCluster, log)},
+		ObjectMeta: templates.ObjectMeta(configName(envoyConfig), labelSelector(envoyConfig), r.KafkaCluster),
+		Data:       map[string]string{"envoy.yaml": GenerateEnvoyConfig(r.KafkaCluster, envoyConfig, log)},
 	}
 	return configMap
 }
 
-func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, log logr.Logger) string {
+func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, envoyConfig *v1beta1.EnvoyConfig, log logr.Logger) string {
 	//TODO support multiple external listener by removing [0] (baluchicken)
 	adminConfig := envoybootstrap.Admin{
 		AccessLogPath: "/tmp/admin_access.log",
@@ -64,6 +64,13 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, log logr.Logger) string {
 	var clusters []*envoyapi.Cluster
 
 	for _, brokerId := range util.GetBrokerIdsFromStatus(kc.Status.BrokersState, log) {
+		brokerConfigGroup := util.GetBrokerConfigGroupFromStatus(kc.Status.BrokersState, brokerId, log)
+		if envoyConfig.EnvoyPerBrokerGroup && brokerConfigGroup != "" && brokerConfigGroup != envoyConfig.Id {
+			// Since `EnvoyPerBrokerGroup` is enabled, we add only brokers having the same group as the envoy.
+			// If we cannot retrieve the broker's configGroup from the Status, we will add the broker to all envoys
+			// (this is a safe net to ensure that the brokers are always reachable through envoy)
+			continue
+		}
 		listeners = append(listeners, &envoyapi.Listener{
 			Address: &envoycore.Address{
 				Address: &envoycore.Address_SocketAddress{
@@ -136,4 +143,12 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, log logr.Logger) string {
 		return ""
 	}
 	return string(marshalledConfig)
+}
+
+func configName(envoyConfig *v1beta1.EnvoyConfig) string {
+	if envoyConfig.Id == envoyGlobal {
+		return envoyVolumeAndConfigName
+	} else {
+		return fmt.Sprintf("%s-%s", envoyVolumeAndConfigName, envoyConfig.Id)
+	}
 }

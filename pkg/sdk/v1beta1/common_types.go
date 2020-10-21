@@ -32,6 +32,9 @@ type ClusterState string
 // ConfigurationState holds info about the configuration state
 type ConfigurationState string
 
+// ConfigurationGroupState holds info about the broker's config group - the config group ID
+type ConfigGroupState string
+
 // PKIBackend represents an interface implementing the PKIManager
 type PKIBackend string
 
@@ -108,6 +111,8 @@ type BrokerState struct {
 	GracefulActionState GracefulActionState `json:"gracefulActionState"`
 	// ConfigurationState holds info about the config
 	ConfigurationState ConfigurationState `json:"configurationState"`
+	// ConfigurationGroupState holds info about the broker's config group - the config group ID
+	ConfigGroupState ConfigGroupState `json:"configGroupState"`
 }
 
 const (

@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/banzaicloud/kafka-operator/api/v1alpha1"
+	"github.com/banzaicloud/kafka-operator/api/v1beta1"
 	"github.com/banzaicloud/kafka-operator/pkg/util"
 )
 
@@ -77,4 +78,22 @@ func GrantsToACLStrings(dn string, grants []v1alpha1.UserTopicGrant) []string {
 		}
 	}
 	return acls
+}
+
+// GetExternalDNSNames returns all potential external DNS names for a kafka cluster - including brokers
+func GetExternalDNSNames(cluster *v1beta1.KafkaCluster) (dnsNames []string) {
+	brokerDns := make(map[string]struct{})
+
+	for _, broker := range cluster.Spec.Brokers {
+		brokerConfig, _ := util.GetBrokerConfig(broker, cluster.Spec)
+		if brokerConfig.HostnameOverride != "" {
+			brokerDns[brokerConfig.HostnameOverride] = struct{}{}
+		}
+	}
+
+	for key := range brokerDns {
+		dnsNames = append(dnsNames, key)
+	}
+
+	return
 }
