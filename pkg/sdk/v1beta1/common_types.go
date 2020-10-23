@@ -112,7 +112,8 @@ type BrokerState struct {
 	// ConfigurationState holds info about the config
 	ConfigurationState ConfigurationState `json:"configurationState"`
 	// ConfigurationGroupState holds info about the broker's config group - the config group ID
-	ConfigGroupState ConfigGroupState `json:"configGroupState"`
+	// +optional
+	ConfigGroupState ConfigGroupState `json:"configGroupState,omitempty"`
 }
 
 const (

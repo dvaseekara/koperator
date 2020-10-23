@@ -4393,7 +4393,6 @@ spec:
                       status
                     type: string
                 required:
-                  - configGroupState
                   - configurationState
                   - gracefulActionState
                   - rackAwarenessState
