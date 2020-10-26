@@ -124,11 +124,22 @@ type BrokerConfig struct {
 	// Network throughput information in kB/s used by Cruise Control to determine broker network capacity.
 	// By default it is set to `125000` which means 1Gbit/s in network throughput.
 	NetworkConfig *NetworkConfig `json:"networkConfig,omitempty"`
+	// Custom properties for the dedicated envoy deployment for this broker configuration group.
+	// Applicable only if envoy.dedicatedEnvoyPerBrokerGroup is set to true.
+	Envoy *BrokerGroupEnvoy `json:"envoy,omitempty"`
+	// ListenersConfig defines the broker specific Kafka listener types.
+	// These will override the HostnameOverrides of the global ExternalListener
+	HostnameOverride string `json:"hostnameOverride,omitempty"`
 }
 
 type NetworkConfig struct {
 	IncomingNetworkThroughPut string `json:"incomingNetworkThroughPut,omitempty"`
 	OutgoingNetworkThroughPut string `json:"outgoingNetworkThroughPut,omitempty"`
+}
+
+type BrokerGroupEnvoy struct {
+	// +kubebuilder:validation:Minimum=1
+	Replicas int32 `json:"replicas,omitempty"`
 }
 
 // RackAwareness defines the required fields to enable kafka's rack aware feature
@@ -189,6 +200,13 @@ type EnvoyConfig struct {
 	LoadBalancerSourceRanges []string                      `json:"loadBalancerSourceRanges,omitempty"`
 	// LoadBalancerIP can be used to specify an exact IP for the LoadBalancer service
 	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
+	// Set this to true if you don't want the operator to create a LoadBalancer service.
+	// This is recommended if you want to use your own LoadBalancer created externally in your infrastructure.
+	UseExistingLB bool `json:"useExistingLoadBalancer,omitempty"`
+	// When set to true operator creates one envoy deployment for each broker group.
+	EnvoyPerBrokerGroup bool                 `json:"dedicatedEnvoyPerBrokerGroup,omitempty"`
+	NodeAffinity        *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
+	Id                  string               `json:"id,omitempty"`
 }
 
 // IstioIngressConfig defines the config for the Istio Ingress Controller
@@ -294,7 +312,8 @@ type AlertManagerConfig struct {
 
 // ExternalListenerConfig defines the external listener config for Kafka
 type ExternalListenerConfig struct {
-	CommonListenerSpec   `json:",inline"`
+	CommonListenerSpec `json:",inline"`
+	// The broker port is computed as the sum of the externalStartingPort and the broker id.
 	ExternalStartingPort int32             `json:"externalStartingPort"`
 	HostnameOverride     string            `json:"hostnameOverride,omitempty"`
 	ServiceAnnotations   map[string]string `json:"serviceAnnotations,omitempty"`

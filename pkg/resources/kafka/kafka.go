@@ -195,27 +195,15 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		return errors.WrapIf(err, "failed to reconcile resource")
 	}
 
-	lbIPs := make([]string, 0)
-
-	if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners != nil {
-		// TODO: This is a hack that needs to be banished when the time is right.
-		// Currently we only support one external listener but this will be fixed
-		// sometime in the future
-		if r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride != "" {
-			// first element of slice will be used for external advertised listener
-			lbIPs = append(lbIPs, r.KafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride)
-		}
-		lbIP, err := getLoadBalancerIP(r.Client, r.KafkaCluster.Namespace, r.KafkaCluster.Spec.GetIngressController(), r.KafkaCluster.Name, log)
-		if err != nil {
-			return err
-		}
-		lbIPs = append(lbIPs, lbIP)
+	err = reconcileBrokersHostname(r.Client, r.KafkaCluster, log)
+	if err != nil {
+		return errors.WrapIf(err, "failed to reconcile resource")
 	}
 
 	// Setup the PKI if using SSL
 	if r.KafkaCluster.Spec.ListenersConfig.SSLSecrets != nil {
 		// reconcile the PKI
-		if err := pki.GetPKIManager(r.Client, r.KafkaCluster, v1beta1.PKIBackendProvided).ReconcilePKI(context.TODO(), log, r.Scheme, lbIPs); err != nil {
+		if err := pki.GetPKIManager(r.Client, r.KafkaCluster, v1beta1.PKIBackendProvided).ReconcilePKI(context.TODO(), log, r.Scheme); err != nil {
 			return err
 		}
 	}
@@ -257,7 +245,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		}
 
 		if r.KafkaCluster.Spec.RackAwareness == nil {
-			o := r.configMap(broker.Id, brokerConfig, lbIPs, serverPass, clientPass, superUsers, log)
+			o := r.configMap(broker.Id, brokerConfig, serverPass, clientPass, superUsers, log)
 			err := k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
 			if err != nil {
 				return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", o.GetObjectKind().GroupVersionKind())
@@ -265,7 +253,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 		} else {
 			if brokerState, ok := r.KafkaCluster.Status.BrokersState[strconv.Itoa(int(broker.Id))]; ok {
 				if brokerState.RackAwarenessState != "" {
-					o := r.configMap(broker.Id, brokerConfig, lbIPs, serverPass, clientPass, superUsers, log)
+					o := r.configMap(broker.Id, brokerConfig, serverPass, clientPass, superUsers, log)
 					err := k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
 					if err != nil {
 						return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", o.GetObjectKind().GroupVersionKind())
@@ -301,6 +289,47 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 	}
 
 	log.V(1).Info("Reconciled")
+
+	return nil
+}
+
+// Broker hostname reconciliation order:
+// 1. broker level override (set as BrokerConfig.HostnameOverride)
+// 2. global override (set as ListenersConfig.ExternalListeners.HostnameOverride)
+// 3. LoadBalancer IP (if LoadBalancer is managed by the operator)
+// Fails if none of the override is used and LoadBalancer is not managed by the operator
+func reconcileBrokersHostname(c client.Client, cluster *v1beta1.KafkaCluster, log logr.Logger) error {
+	globalHostname := ""
+	if cluster.Spec.ListenersConfig.ExternalListeners != nil {
+		// TODO: This is a hack that needs to be banished when the time is right.
+		// Currently we only support one external listener but this will be fixed
+		// sometime in the future
+		globalHostname = cluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride
+	}
+
+	var lbError error
+	if !cluster.Spec.EnvoyConfig.UseExistingLB && strings.TrimSpace(globalHostname) == "" {
+		globalHostname, lbError = getLoadBalancerIP(c, cluster.Namespace, cluster.Spec.GetIngressController(), cluster.Name, log)
+		if lbError != nil {
+			log.Error(lbError, "failed to fetch Load Balancer IP")
+		}
+	}
+
+	for idx, broker := range cluster.Spec.Brokers {
+		brokerConfig, err := util.GetBrokerConfig(broker, cluster.Spec)
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(brokerConfig.HostnameOverride) == "" {
+			if lbError != nil {
+				return lbError
+			}
+			if cluster.Spec.Brokers[idx].BrokerConfig == nil {
+				cluster.Spec.Brokers[idx].BrokerConfig = &v1beta1.BrokerConfig{}
+			}
+			cluster.Spec.Brokers[idx].BrokerConfig.HostnameOverride = globalHostname
+		}
+	}
 
 	return nil
 }
@@ -612,6 +641,13 @@ func (r *Reconciler) reconcileKafkaPod(log logr.Logger, desiredPod *corev1.Pod) 
 
 		if statusErr != nil {
 			return errorfactory.New(errorfactory.StatusUpdateError{}, statusErr, "updating status for resource failed", "kind", desiredType)
+		}
+
+		if configGroup, ok := desiredPod.Labels["configGroup"]; ok {
+			statusErr = k8sutil.UpdateBrokerStatus(r.Client, []string{desiredPod.Labels["brokerId"]}, r.KafkaCluster, v1beta1.ConfigGroupState(configGroup), log)
+			if statusErr != nil {
+				return errorfactory.New(errorfactory.StatusUpdateError{}, statusErr, "updating status for resource failed", "kind", desiredType)
+			}
 		}
 
 		if val, ok := r.KafkaCluster.Status.BrokersState[desiredPod.Labels["brokerId"]]; ok && val.GracefulActionState.CruiseControlState != v1beta1.GracefulUpscaleSucceeded {

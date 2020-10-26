@@ -15,6 +15,7 @@
 package util
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -193,6 +194,24 @@ func GetBrokerIdsFromStatus(brokerStatuses map[string]v1beta1.BrokerState, log l
 	return brokerIds
 }
 
+func GetBrokerConfigGroupFromStatus(brokerStatuses map[string]v1beta1.BrokerState, brokerId int, log logr.Logger) string {
+	stringId := strconv.Itoa(brokerId)
+	if brokerStatus, ok := brokerStatuses[stringId]; ok {
+		return string(brokerStatus.ConfigGroupState)
+	}
+	return ""
+}
+
+func GetBrokerSpecFromId(clusterSpec v1beta1.KafkaClusterSpec, brokerId int32, log logr.Logger) *v1beta1.Broker {
+	for _, broker := range clusterSpec.Brokers {
+		if broker.Id == brokerId {
+			return &broker
+		}
+	}
+	log.Info(fmt.Sprintf("Could not found brokerId %d in Spec. Broker ID is invalid or broker was removed from the spec", brokerId))
+	return nil
+}
+
 // GetBrokerConfig compose the brokerConfig for a given broker
 func GetBrokerConfig(broker v1beta1.Broker, clusterSpec v1beta1.KafkaClusterSpec) (*v1beta1.BrokerConfig, error) {
 
@@ -225,6 +244,34 @@ func dedupStorageConfigs(elements []v1beta1.StorageConfig) []v1beta1.StorageConf
 	}
 
 	return result
+}
+
+// GetEnvoyConfig compose the Envoy config from a specific broker config and the global config
+func GetEnvoyConfig(configId string, brokerConfig v1beta1.BrokerConfig, clusterSpec v1beta1.KafkaClusterSpec) *v1beta1.EnvoyConfig {
+	envoyConfig := clusterSpec.EnvoyConfig.DeepCopy()
+
+	if envoyConfig == nil {
+		return nil
+	}
+
+	envoyConfig.Id = configId
+
+	if !clusterSpec.EnvoyConfig.EnvoyPerBrokerGroup {
+		return envoyConfig
+	}
+
+	// Broker config level overrides
+	if brokerConfig.Envoy != nil && brokerConfig.Envoy.Replicas > 0 {
+		envoyConfig.Replicas = brokerConfig.Envoy.Replicas
+	}
+	if brokerConfig.NodeSelector != nil {
+		envoyConfig.NodeSelector = brokerConfig.NodeSelector
+	}
+	if brokerConfig.NodeAffinity != nil {
+		envoyConfig.NodeAffinity = brokerConfig.NodeAffinity
+	}
+
+	return envoyConfig
 }
 
 // GetBrokerImage returns the used broker image
