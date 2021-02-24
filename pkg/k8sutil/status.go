@@ -324,12 +324,10 @@ func CreateInternalListenerStatuses(kafkaCluster *v1beta1.KafkaCluster, external
 		// add addresses per broker
 		for _, broker := range kafkaCluster.Spec.Brokers {
 			var address = ""
-
 			if iListener.ExternalListenerForHostname != "" && iListener.InternalStartingPort > 0 {
 				if eListenerStatus, ok := externalListenerStatus[iListener.ExternalListenerForHostname]; ok {
-					hostname := getHostnameForBrokerId(eListenerStatus, broker.Id)
-					address = fmt.Sprintf("%s://%s:%d",
-						strings.ToUpper(iListener.Name), hostname, iListener.InternalStartingPort+broker.Id)
+					address = fmt.Sprintf("%s:%d", getHostnameForBrokerId(eListenerStatus, broker.Id),
+						iListener.InternalStartingPort+broker.Id)
 				}
 			}
 
