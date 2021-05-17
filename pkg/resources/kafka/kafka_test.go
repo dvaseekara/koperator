@@ -582,11 +582,11 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 			},
 			internalListeners: []v1beta1.InternalListenerConfig{{
 				CommonListenerSpec: v1beta1.CommonListenerSpec{
-					Type:          v1beta1.SecurityProtocol("ssl"),
-					Name:          "internal_auto",
-					ContainerPort: 9092,
+					Type:                            v1beta1.SecurityProtocol("ssl"),
+					Name:                            "internal_auto",
+					ContainerPort:                   9092,
+					UsedForInnerBrokerCommunication: false,
 				},
-				UsedForInnerBrokerCommunication: false,
 			},
 			},
 			SSLSecrets: &v1beta1.SSLSecrets{},
@@ -622,11 +622,11 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 			},
 			internalListeners: []v1beta1.InternalListenerConfig{{
 				CommonListenerSpec: v1beta1.CommonListenerSpec{
-					Type:          v1beta1.SecurityProtocol("ssl"),
-					Name:          "internal_auto",
-					ContainerPort: 9092,
+					Type:                            v1beta1.SecurityProtocol("ssl"),
+					Name:                            "internal_auto",
+					ContainerPort:                   9092,
+					UsedForInnerBrokerCommunication: false,
 				},
-				UsedForInnerBrokerCommunication: false,
 			},
 			},
 			SSLSecrets: &v1beta1.SSLSecrets{},
@@ -705,27 +705,27 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 			internalListeners: []v1beta1.InternalListenerConfig{
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
-						Type:          v1beta1.SecurityProtocol("ssl"),
-						Name:          "internal_auto_1",
-						ContainerPort: 9092,
+						Type:                            v1beta1.SecurityProtocol("ssl"),
+						Name:                            "internal_auto_1",
+						ContainerPort:                   9092,
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
-						Type:          v1beta1.SecurityProtocol("ssl"),
-						Name:          "internal_auto_2",
-						ContainerPort: 9092,
+						Type:                            v1beta1.SecurityProtocol("ssl"),
+						Name:                            "internal_auto_2",
+						ContainerPort:                   9092,
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
-						Type:          v1beta1.SecurityProtocol("ssl"),
-						Name:          "internal_auto_3",
-						ContainerPort: 9092,
+						Type:                            v1beta1.SecurityProtocol("ssl"),
+						Name:                            "internal_auto_3",
+						ContainerPort:                   9092,
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
@@ -735,8 +735,8 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 						ServerSSLCertSecret: &corev1.LocalObjectReference{
 							Name: "customcert",
 						},
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 			},
 			SSLSecrets: &v1beta1.SSLSecrets{},
@@ -798,8 +798,8 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 						ServerSSLCertSecret: &corev1.LocalObjectReference{
 							Name: "customcert",
 						},
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
@@ -809,8 +809,8 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 						ServerSSLCertSecret: &corev1.LocalObjectReference{
 							Name: "customcert",
 						},
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 			},
 			SSLSecrets: &v1beta1.SSLSecrets{},
@@ -830,11 +830,11 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 			internalListeners: []v1beta1.InternalListenerConfig{
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
-						Type:          v1beta1.SecurityProtocol("ssl"),
-						Name:          "internal_custom_1",
-						ContainerPort: 9092,
+						Type:                            v1beta1.SecurityProtocol("ssl"),
+						Name:                            "internal_custom_1",
+						ContainerPort:                   9092,
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 				{
 					CommonListenerSpec: v1beta1.CommonListenerSpec{
@@ -844,8 +844,8 @@ func TestGetServerPasswordKeysAndUsers(t *testing.T) { //nolint funlen
 						ServerSSLCertSecret: &corev1.LocalObjectReference{
 							Name: "customcert",
 						},
+						UsedForInnerBrokerCommunication: false,
 					},
-					UsedForInnerBrokerCommunication: false,
 				},
 			},
 		},
