@@ -6,6 +6,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
+    strategy.spinnaker.io/replace: 'true'
   creationTimestamp: null
   name: kafkaclusters.kafka.banzaicloud.io
 spec:
@@ -9551,6 +9552,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
+    strategy.spinnaker.io/replace: "true"
   creationTimestamp: null
   name: kafkatopics.kafka.banzaicloud.io
 spec:
@@ -9633,6 +9635,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.5.0
+    strategy.spinnaker.io/replace: "true"
   creationTimestamp: null
   name: kafkausers.kafka.banzaicloud.io
 spec:
