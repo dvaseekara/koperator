@@ -92,7 +92,12 @@ func expectEnvoyConfigMap(kafkaCluster *v1beta1.KafkaCluster, eListenerTemplate 
       portValue: 9901
 staticResources:
   clusters:
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: broker-0
       endpoints:
@@ -104,7 +109,12 @@ staticResources:
                 portValue: 9094
     name: broker-0
     type: STRICT_DNS
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: broker-1
       endpoints:
@@ -116,7 +126,12 @@ staticResources:
                 portValue: 9094
     name: broker-1
     type: STRICT_DNS
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: broker-2
       endpoints:
@@ -128,7 +143,12 @@ staticResources:
                 portValue: 9094
     name: broker-2
     type: STRICT_DNS
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: all-brokers
       endpoints:
@@ -328,7 +348,12 @@ func expectEnvoyWithConfigAz1(kafkaCluster *v1beta1.KafkaCluster) {
       portValue: 9901
 staticResources:
   clusters:
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: broker-0
       endpoints:
@@ -340,7 +365,12 @@ staticResources:
                 portValue: 9094
     name: broker-0
     type: STRICT_DNS
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: all-brokers
       endpoints:
@@ -453,7 +483,12 @@ func expectEnvoyWithConfigAz2(kafkaCluster *v1beta1.KafkaCluster) {
       portValue: 9901
 staticResources:
   clusters:
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: broker-1
       endpoints:
@@ -465,7 +500,12 @@ staticResources:
                 portValue: 9094
     name: broker-1
     type: STRICT_DNS
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: broker-2
       endpoints:
@@ -477,7 +517,12 @@ staticResources:
                 portValue: 9094
     name: broker-2
     type: STRICT_DNS
-  - connectTimeout: 1s
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000
+      - maxConnections: 1000000
+        priority: HIGH
+    connectTimeout: 1s
     loadAssignment:
       clusterName: all-brokers
       endpoints:

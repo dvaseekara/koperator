@@ -16,8 +16,6 @@ package envoy
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
-
 	envoybootstrap "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoycluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoycore "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -27,6 +25,8 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/wrappers"
 
 	//nolint:staticcheck
 	"github.com/golang/protobuf/jsonpb"
@@ -145,6 +145,18 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 				ConnectTimeout:       &duration.Duration{Seconds: 1},
 				ClusterDiscoveryType: &envoycluster.Cluster_Type{Type: envoycluster.Cluster_STRICT_DNS},
 				LbPolicy:             envoycluster.Cluster_ROUND_ROBIN,
+				CircuitBreakers: &envoycluster.CircuitBreakers{
+					Thresholds: []*envoycluster.CircuitBreakers_Thresholds{
+						{
+							Priority:       envoycore.RoutingPriority_DEFAULT,
+							MaxConnections: &wrappers.UInt32Value{Value: 1_000_000},
+						},
+						{
+							Priority:       envoycore.RoutingPriority_HIGH,
+							MaxConnections: &wrappers.UInt32Value{Value: 1_000_000},
+						},
+					},
+				},
 				LoadAssignment: &envoyendpoint.ClusterLoadAssignment{
 					ClusterName: fmt.Sprintf("broker-%d", brokerId),
 					Endpoints: []*envoyendpoint.LocalityLbEndpoints{{
@@ -214,6 +226,18 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 		ConnectTimeout:       &duration.Duration{Seconds: 1},
 		ClusterDiscoveryType: &envoycluster.Cluster_Type{Type: envoycluster.Cluster_STRICT_DNS},
 		LbPolicy:             envoycluster.Cluster_ROUND_ROBIN,
+		CircuitBreakers: &envoycluster.CircuitBreakers{
+			Thresholds: []*envoycluster.CircuitBreakers_Thresholds{
+				{
+					Priority:       envoycore.RoutingPriority_DEFAULT,
+					MaxConnections: &wrappers.UInt32Value{Value: 1_000_000},
+				},
+				{
+					Priority:       envoycore.RoutingPriority_HIGH,
+					MaxConnections: &wrappers.UInt32Value{Value: 1_000_000},
+				},
+			},
+		},
 		LoadAssignment: &envoyendpoint.ClusterLoadAssignment{
 			ClusterName: allBrokerEnvoyConfigName,
 			Endpoints: []*envoyendpoint.LocalityLbEndpoints{{
