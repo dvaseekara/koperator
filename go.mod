@@ -43,6 +43,7 @@ require (
 	go.uber.org/zap v1.10.0
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.25.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.19
 	k8s.io/apiextensions-apiserver v0.18.19

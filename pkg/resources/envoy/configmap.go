@@ -16,6 +16,7 @@ package envoy
 
 import (
 	"fmt"
+
 	envoybootstrap "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoycluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoycore "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -28,9 +29,8 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/wrappers"
 
-	//nolint:staticcheck
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/ptypes/duration"
+	"google.golang.org/protobuf/encoding/protojson"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -270,14 +270,14 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 		Admin:           &adminConfig,
 		StaticResources: &config,
 	}
-	marshaller := &jsonpb.Marshaler{}
-	marshalledProtobufConfig, err := marshaller.MarshalToString(&generatedConfig)
+	marshaller := &protojson.MarshalOptions{}
+	marshalledProtobufConfig, err := marshaller.Marshal(&generatedConfig)
 	if err != nil {
 		log.Error(err, "could not marshall envoy config")
 		return ""
 	}
 
-	marshalledConfig, err := yaml.JSONToYAML([]byte(marshalledProtobufConfig))
+	marshalledConfig, err := yaml.JSONToYAML(marshalledProtobufConfig)
 	if err != nil {
 		log.Error(err, "could not convert config from Json to Yaml")
 		return ""
