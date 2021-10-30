@@ -9,10 +9,10 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/jetstack/cert-manager v1.4.4
 	github.com/json-iterator/go v1.1.12 // indirect
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
+	golang.org/x/net v0.0.0-20211029224645-99673261e6eb // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.22.2
-	k8s.io/apimachinery v0.22.2
+	k8s.io/api v0.22.3
+	k8s.io/apimachinery v0.22.3
 	sigs.k8s.io/controller-runtime v0.10.2
 )
