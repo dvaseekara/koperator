@@ -16,13 +16,14 @@ package kafka
 
 import (
 	"context"
-	"emperror.dev/errors"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 	"math"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
+
+	"emperror.dev/errors"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/banzaicloud/koperator/pkg/resources/templates"
 	"github.com/banzaicloud/koperator/pkg/util"
