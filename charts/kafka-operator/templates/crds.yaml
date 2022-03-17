@@ -16246,6 +16246,10 @@ spec:
                     description: Annotations defines the annotations placed on the
                       envoy ingress controller deployment
                     type: object
+                  brokerHostnameTemplate:
+                    description: Template used to generate broker hostnames for tls
+                      enabled envoy. %id will be replaced with brokerId value
+                    type: string
                   disruptionBudget:
                     description: DisruptionBudget is the pod disruption budget attached
                       to Envoy Deployment(s)
@@ -18190,6 +18194,11 @@ spec:
                                         description: Annotations defines the annotations
                                           placed on the envoy ingress controller deployment
                                         type: object
+                                      brokerHostnameTemplate:
+                                        description: Template used to generate broker
+                                          hostnames for tls enabled envoy. %id will
+                                          be replaced with brokerId value
+                                        type: string
                                       disruptionBudget:
                                         description: DisruptionBudget is the pod disruption
                                           budget attached to Envoy Deployment(s)
@@ -18899,6 +18908,7 @@ spec:
                             on the address having the following format: <kafka-cluster-name>-<broker-id>.<namespace><value-specified-in-hostnameOverride-field>'
                           type: string
                         name:
+                          pattern: ^[a-z0-9\-]+
                           type: string
                         serverSSLCertSecret:
                           description: ServerSSLCertSecret is a reference to the Kubernetes
@@ -18936,6 +18946,8 @@ spec:
                           - required
                           - requested
                           - none
+                        tlsSecretName:
+                          description: TLS secret
                           type: string
                         type:
                           description: 'SecurityProtocol is the protocol used to communicate
@@ -18980,6 +18992,7 @@ spec:
                           format: int32
                           type: integer
                         name:
+                          pattern: ^[a-z0-9\-]+
                           type: string
                         serverSSLCertSecret:
                           description: ServerSSLCertSecret is a reference to the Kubernetes
