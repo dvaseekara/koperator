@@ -15,6 +15,7 @@
 package v1beta1
 
 import (
+	"strconv"
 	"strings"
 
 	"emperror.dev/errors"
@@ -288,6 +289,8 @@ type EnvoyConfig struct {
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	CommandLineArgs *EnvoyCommandLineArgs `json:"envoyCommandLineArgs,omitempty"`
+	// Template used to generate broker hostnames for tls enabled envoy. %id will be replaced with brokerId value
+	BrokerHostnameTemplate string `json:"brokerHostnameTemplate,omitempty"`
 }
 
 // EnvoyCommandLineArgs defines envoy command line arguments
@@ -364,6 +367,16 @@ func (c ExternalListenerConfig) GetAnyCastPort() int32 {
 	return *c.AnyCastPort
 }
 
+// When TLS is enabled AnyCastPort is enough since hostname based multiplexing
+// is used and not port based one
+func (c ExternalListenerConfig) GetBrokerPort(brokerId int32) int32 {
+	if c.TLSEnabled() {
+		return c.GetAnyCastPort()
+	} else {
+		return c.ExternalStartingPort + brokerId
+	}
+}
+
 // GetServiceAnnotations returns a copy of the ServiceAnnotations field.
 func (c IngressServiceSettings) GetServiceAnnotations() map[string]string {
 	return util.CloneMap(c.ServiceAnnotations)
@@ -375,6 +388,16 @@ func (c IngressServiceSettings) GetServiceType() corev1.ServiceType {
 		return corev1.ServiceTypeLoadBalancer
 	}
 	return c.ServiceType
+}
+
+// Replace %id in brokerHostnameTemplate with actual broker id
+func (c EnvoyConfig) GetBrokerHostname(brokerId int32) string {
+	return strings.Replace(c.BrokerHostnameTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
+}
+
+// We use -1 for ExternalStartingPort value to enable TLS on envoy
+func (c ExternalListenerConfig) TLSEnabled() bool {
+	return c.ExternalStartingPort == -1
 }
 
 // SSLSecrets defines the Kafka SSL secrets
@@ -446,6 +469,8 @@ type ExternalListenerConfig struct {
 	// if set overrides the the default `KafkaClusterSpec.IstioIngressConfig` or `KafkaClusterSpec.EnvoyConfig` for this external listener.
 	// +optional
 	Config *Config `json:"config,omitempty"`
+	// TLS secret
+	TLSSecretName string `json:"tlsSecretName,omitempty"`
 }
 
 // Config defines the external access ingress controller configuration
