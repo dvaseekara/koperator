@@ -102,6 +102,13 @@ func (in *BrokerConfig) DeepCopyInto(out *BrokerConfig) {
 			(*out)[key] = val
 		}
 	}
+	if in.BrokerLabels != nil {
+		in, out := &in.BrokerLabels, &out.BrokerLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.NetworkConfig != nil {
 		in, out := &in.NetworkConfig, &out.NetworkConfig
 		*out = new(NetworkConfig)
