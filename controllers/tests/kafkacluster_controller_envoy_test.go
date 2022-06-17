@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega" //nolint:typecheck
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -349,10 +349,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:
@@ -681,10 +685,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:
@@ -944,10 +952,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:
@@ -1260,10 +1272,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:
@@ -1576,10 +1592,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:

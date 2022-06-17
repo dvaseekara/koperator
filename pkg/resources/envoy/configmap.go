@@ -27,10 +27,12 @@ import (
 	envoyroute "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoystdoutaccesslog "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/stream/v3"
 	envoyhttphealthcheck "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/health_check/v3"
+	envoyhttprouter "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
 	tls_inspectorv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoyhcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoytcpproxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
 	tlsv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	envoytypesmatcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	envoytypes "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/ghodss/yaml"
@@ -93,7 +95,7 @@ func generateEnvoyHealthCheckListener(ingressConfig v1beta1.IngressConfig, log l
 		log.Error(err, "could not marshall envoy health-check stdoutAccessLog config")
 		return nil
 	}
-	healtCheckConfig := &envoyhttphealthcheck.HealthCheck{
+	healthCheckConfig := &envoyhttphealthcheck.HealthCheck{
 		PassThroughMode: wrapperspb.Bool(false),
 		ClusterMinHealthyPercentages: map[string]*envoytypes.Percent{
 			envoyutils.AllBrokerEnvoyConfigName: {Value: float64(1)},
@@ -101,13 +103,25 @@ func generateEnvoyHealthCheckListener(ingressConfig v1beta1.IngressConfig, log l
 		Headers: []*envoyroute.HeaderMatcher{
 			{
 				Name: ":path",
-				HeaderMatchSpecifier: &envoyroute.HeaderMatcher_ExactMatch{
-					ExactMatch: envoyutils.HealthCheckPath,
+				HeaderMatchSpecifier: &envoyroute.HeaderMatcher_StringMatch{
+					StringMatch: &envoytypesmatcher.StringMatcher{
+						IgnoreCase: true,
+						MatchPattern: &envoytypesmatcher.StringMatcher_Exact{
+							Exact: envoyutils.HealthCheckPath,
+						},
+					},
 				},
 			},
 		},
 	}
-	pbstHealthCheckConfig, err := anypb.New(healtCheckConfig)
+	pbstHealthCheckConfig, err := anypb.New(healthCheckConfig)
+	if err != nil {
+		log.Error(err, "could not marshall envoy healthCheckConfig config")
+		return nil
+	}
+
+	httpHealthRouterConfig := &envoyhttprouter.Router{}
+	pbstHttpHealthRouterConfig, err := anypb.New(httpHealthRouterConfig)
 	if err != nil {
 		log.Error(err, "could not marshall envoy stdoutAccessLog config")
 		return nil
@@ -151,6 +165,9 @@ func generateEnvoyHealthCheckListener(ingressConfig v1beta1.IngressConfig, log l
 			},
 			{
 				Name: wellknown.Router,
+				ConfigType: &envoyhcm.HttpFilter_TypedConfig{
+					TypedConfig: pbstHttpHealthRouterConfig,
+				},
 			},
 		},
 		AccessLog: []*envoyaccesslog.AccessLog{
