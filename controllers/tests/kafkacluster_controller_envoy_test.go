@@ -349,8 +349,10 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
             typedConfig:
@@ -683,8 +685,10 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
             typedConfig:
@@ -948,10 +952,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:
@@ -1264,8 +1272,10 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
             typedConfig:
@@ -1582,10 +1592,14 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
           routeConfig:
             name: local
             virtualHosts:
