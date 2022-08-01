@@ -845,7 +845,7 @@ func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPo
 	case err != nil:
 		log.Error(err, "could not match objects", "kind", desiredType)
 	case r.isPodTainted(log, currentPod):
-		log.Info("pod has tainted labels", "pod", currentPod)
+		log.Info("pod has tainted labels, deleting it", "pod", currentPod)
 	case patchResult.IsEmpty():
 		if !k8sutil.IsPodContainsTerminatedContainer(currentPod) &&
 			r.KafkaCluster.Status.BrokersState[currentPod.Labels[v1beta1.BrokerIdLabelKey]].ConfigurationState == v1beta1.ConfigInSync &&
