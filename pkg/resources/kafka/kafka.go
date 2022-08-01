@@ -839,7 +839,7 @@ func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPo
 		}
 		desiredPod.Spec.Tolerations = uniqueTolerations
 	}
-	// Check if the resource actually updated
+	// Check if the resource actually updated or if labels match TaintedBrokersSelector
 	patchResult, err := patch.DefaultPatchMaker.Calculate(currentPod, desiredPod)
 	switch {
 	case err != nil:
@@ -947,6 +947,7 @@ func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPo
 	return nil
 }
 
+// Checks for match between pod labels and TaintedBrokersSelector
 func (r *Reconciler) isPodTainted(log logr.Logger, pod *corev1.Pod) bool {
 	selector, err := metav1.LabelSelectorAsSelector(r.KafkaCluster.Spec.TaintedBrokersSelector)
 
