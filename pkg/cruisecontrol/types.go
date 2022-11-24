@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scale
+package cruisecontrol
 
 import "github.com/banzaicloud/koperator/api/v1beta1"
 
@@ -28,6 +28,11 @@ type CruiseControlScaler interface {
 	PartitionReplicasByBroker() (map[string]int32, error)
 	BrokerWithLeastPartitionReplicas() (string, error)
 	LogDirsByBroker() (map[string]map[LogDirState][]string, error)
+}
+
+type CruiseControlHealer interface {
+	ResumeSelfHealing() error
+	PauseSelfHealing() error
 }
 
 type Result struct {

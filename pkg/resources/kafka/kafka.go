@@ -38,6 +38,7 @@ import (
 
 	"github.com/banzaicloud/koperator/api/v1alpha1"
 	"github.com/banzaicloud/koperator/api/v1beta1"
+	"github.com/banzaicloud/koperator/pkg/cruisecontrol"
 	"github.com/banzaicloud/koperator/pkg/errorfactory"
 	"github.com/banzaicloud/koperator/pkg/jmxextractor"
 	"github.com/banzaicloud/koperator/pkg/k8sutil"
@@ -45,7 +46,6 @@ import (
 	"github.com/banzaicloud/koperator/pkg/pki"
 	"github.com/banzaicloud/koperator/pkg/resources"
 	"github.com/banzaicloud/koperator/pkg/resources/templates"
-	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	certutil "github.com/banzaicloud/koperator/pkg/util/cert"
 	envoyutils "github.com/banzaicloud/koperator/pkg/util/envoy"
@@ -434,19 +434,19 @@ func (r *Reconciler) reconcileKafkaPodDelete(log logr.Logger) error {
 
 	if len(podsDeletedFromSpec) > 0 {
 		if !arePodsAlreadyDeleted(podsDeletedFromSpec, log) {
-			cruiseControlURL := scale.CruiseControlURLFromKafkaCluster(r.KafkaCluster)
+			cruiseControlURL := cruisecontrol.CruiseControlURLFromKafkaCluster(r.KafkaCluster)
 			// FIXME: we should reuse the context of the Kafka Controller
-			cc, err := scale.NewCruiseControlScaler(context.TODO(), scale.CruiseControlURLFromKafkaCluster(r.KafkaCluster))
+			cc, err := cruisecontrol.NewCruiseControlScaler(context.TODO(), cruisecontrol.CruiseControlURLFromKafkaCluster(r.KafkaCluster))
 			if err != nil {
 				return errorfactory.New(errorfactory.CruiseControlNotReady{}, err,
 					"failed to initialize Cruise Control Scaler", "cruise control url", cruiseControlURL)
 			}
 
-			brokerStates := []scale.KafkaBrokerState{
-				scale.KafkaBrokerNew,
-				scale.KafkaBrokerAlive,
-				scale.KafkaBrokerDemoted,
-				scale.KafkaBrokerBadDisks,
+			brokerStates := []cruisecontrol.KafkaBrokerState{
+				cruisecontrol.KafkaBrokerNew,
+				cruisecontrol.KafkaBrokerAlive,
+				cruisecontrol.KafkaBrokerDemoted,
+				cruisecontrol.KafkaBrokerBadDisks,
 			}
 			availableBrokers, err := cc.BrokersWithState(brokerStates...)
 			if err != nil {
