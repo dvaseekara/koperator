@@ -42,7 +42,7 @@ import (
 
 const MinLogDirSizeInMB = int64(1)
 
-func (r *Reconciler) configMap(clientPass string, capacityConfig string, log logr.Logger) runtime.Object {
+func (r *Reconciler) configMap(clientPass string, capacityConfig string, brokerSetsConfig string, log logr.Logger) runtime.Object {
 	ccConfig := properties.NewProperties()
 
 	// Add base Cruise Control configuration
@@ -83,6 +83,7 @@ func (r *Reconciler) configMap(clientPass string, capacityConfig string, log log
 		Data: map[string]string{
 			"cruisecontrol.properties": ccConfig.String(),
 			"capacity.json":            capacityConfig,
+			"brokerSets.json":          brokerSetsConfig,
 			"clusterConfigs.json":      r.KafkaCluster.Spec.CruiseControlConfig.ClusterConfig,
 			"log4j.properties":         r.KafkaCluster.Spec.CruiseControlConfig.GetCCLog4jConfig(),
 		},
@@ -361,4 +362,47 @@ func parseMountPathWithSize(storage v1beta1.StorageConfig) int64 {
 	tmpDec.Round(q.AsDec(), -1*inf.Scale(resource.Mega), inf.RoundDown)
 
 	return resource.NewQuantity(tmpDec.UnscaledBig().Int64(), q.Format).Value()
+}
+
+type BrokerSetConfig struct {
+	BrokerSets []BrokerSet `json:"brokerSets"`
+}
+
+type BrokerSet struct {
+	BrokerSetId string `json:"brokerSetId"`
+	BrokerIds   []int  `json:"brokerIds"`
+	Doc         string `json:"doc"`
+}
+
+func GenerateBrokerSetsConfig(kafkaCluster *v1beta1.KafkaCluster, log logr.Logger, config *corev1.ConfigMap) (string, error) {
+
+	log.Info("generating broker set config")
+
+	brokerToBrokerSetMap := make(map[string][]int)
+	for _, broker := range kafkaCluster.Spec.Brokers {
+		// brokerConfig, _ := broker.GetBrokerConfig(kafkaCluster.Spec)
+		// brokerSetId := brokerConfig.BrokerSetId
+		// if brokerSetId != "" {
+		// 	brokerToBrokerSetMap[brokerSetId] = append(brokerToBrokerSetMap[brokerSetId], int(broker.Id))
+		// } else {
+		// 	brokerToBrokerSetMap["__default__"] = append(brokerToBrokerSetMap["__default__"], int(broker.Id))
+		// }
+		brokerSetId := broker.Id / 1000
+		if brokerSetId > 0 {
+			brokerSet := "brokerset-" + fmt.Sprint(brokerSetId)
+			brokerToBrokerSetMap[brokerSet] = append(brokerToBrokerSetMap[brokerSet], int(broker.Id))
+		} else {
+			brokerToBrokerSetMap["__default__"] = append(brokerToBrokerSetMap["__default__"], int(broker.Id))
+		}
+	}
+
+	result := BrokerSetConfig{}
+	for brokerSetId, brokerList := range brokerToBrokerSetMap {
+		brokerSet := BrokerSet{BrokerSetId: brokerSetId, BrokerIds: brokerList, Doc: "group " + brokerSetId}
+		result.BrokerSets = append(result.BrokerSets, brokerSet)
+	}
+
+	jsonResult, err := json.MarshalIndent(&result, "", "    ")
+	log.Info("brokerSets.json: " + string(jsonResult))
+	return string(jsonResult), err
 }

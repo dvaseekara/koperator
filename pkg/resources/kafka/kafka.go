@@ -178,6 +178,64 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 	log.V(1).Info("Reconciling")
 
 	ctx := context.Background()
+
+	// read configmap
+	key := types.NamespacedName{
+		Name:      "kafkacluster-extension",
+		Namespace: r.KafkaCluster.Namespace,
+	}
+	instanceExtension := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, key, instanceExtension)
+	if err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, "extension configmap not found")
+	}
+
+	// extBrokers := ExternalBrokers{}
+	// if err := yaml.Unmarshal([]byte(instanceExtension.Data["kafkaClusterExtention"]), &extBrokers); err != nil {
+	// 	log.Error(err, "Config map data not in yaml format")
+	// }
+	// log.Info("Configmap content:" + fmt.Sprint(extBrokers))
+	// // merge configmap with kafka cr
+	// log.Info("Looking for new brokers to add")
+	// for _, b := range extBrokers.Brokers {
+	// 	found := false
+	// 	for _, tmp := range r.KafkaCluster.Spec.Brokers {
+	// 		if b.Id == tmp.Id {
+	// 			found = true
+	// 			break
+	// 		}
+	// 	}
+	// 	if !found {
+	// 		log.Info("Adding new broker " + fmt.Sprint(b.Id))
+	// 		err := k8sutil.AddNewBrokerToCr(b, r.KafkaCluster.Name, r.KafkaCluster.Namespace, r.Client)
+	// 		if err != nil {
+	// 			log.Error(err, "Failed to add broker id to kafka cr: "+fmt.Sprint(b.Id))
+	// 		}
+	// 	}
+	// }
+	// log.Info("Looking for old brokers to remove")
+	// for _, b := range r.KafkaCluster.Spec.Brokers {
+	// 	// brokers with ids grater than 1000 are ephemeral
+	// 	if b.Id/1000 > 0 {
+	// 		found := false
+	// 		for _, tmp := range extBrokers.Brokers {
+	// 			if b.Id == tmp.Id {
+	// 				found = true
+	// 				break
+	// 			}
+	// 		}
+	// 		if !found {
+	// 			log.Info("Removing old broker " + fmt.Sprint(b.Id))
+	// 			err = k8sutil.RemoveBrokerFromCr(fmt.Sprint(b.Id), r.KafkaCluster.Name, r.KafkaCluster.Namespace, r.Client)
+	// 			if err != nil {
+	// 				log.Error(err, "Failed to remove ephemeral broker id from cr: "+fmt.Sprint(b.Id))
+	// 			}
+	// 			break
+	// 		}
+	// 	}
+	// }
+
+	// original code
 	if err := k8sutil.UpdateBrokerConfigurationBackup(r.Client, r.KafkaCluster); err != nil {
 		log.Error(err, "failed to update broker configuration backup")
 	}
@@ -211,8 +269,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 	}
 
 	// Handle Pod delete
-	err := r.reconcileKafkaPodDelete(log)
-	if err != nil {
+	if err := r.reconcileKafkaPodDelete(log); err != nil {
 		return errors.WrapIf(err, "failed to reconcile resource")
 	}
 

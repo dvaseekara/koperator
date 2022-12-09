@@ -48,6 +48,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/resources/istioingress"
 	"github.com/banzaicloud/koperator/pkg/resources/kafka"
 	"github.com/banzaicloud/koperator/pkg/resources/kafkamonitoring"
+	"github.com/banzaicloud/koperator/pkg/resources/kafkascaling"
 	"github.com/banzaicloud/koperator/pkg/resources/nodeportexternalaccess"
 	"github.com/banzaicloud/koperator/pkg/util"
 )
@@ -112,9 +113,9 @@ func (r *KafkaClusterReconciler) Reconcile(ctx context.Context, request ctrl.Req
 	}
 
 	if instance.Status.State != v1beta1.KafkaClusterRollingUpgrading {
-		if err := cruiseControlHealer.PauseSelfHealing(); err != nil {
-			return requeueWithError(log, err.Error(), err)
-		}
+		// if err := cruiseControlHealer.PauseSelfHealing(); err != nil {
+		// 	return requeueWithError(log, err.Error(), err)
+		// }
 		if err := k8sutil.UpdateCRStatus(r.Client, instance, v1beta1.KafkaClusterReconciling, log); err != nil {
 			return requeueWithError(log, err.Error(), err)
 		}
@@ -126,6 +127,7 @@ func (r *KafkaClusterReconciler) Reconcile(ctx context.Context, request ctrl.Req
 		nodeportexternalaccess.New(r.Client, instance),
 		kafkamonitoring.New(r.Client, instance),
 		cruisecontrolmonitoring.New(r.Client, instance),
+		kafkascaling.New(r.Client, r.DirectClient, instance),
 		kafka.New(r.Client, r.DirectClient, instance, r.KafkaClientProvider),
 		cruisecontrol.New(r.Client, instance),
 	}

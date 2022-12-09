@@ -129,7 +129,12 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 				return errors.WrapIf(err, "failed to generate capacity config")
 			}
 
-			o = r.configMap(clientPass, capacityConfig, log)
+			brokerSetsConfig, err := GenerateBrokerSetsConfig(r.KafkaCluster, log, config)
+			if err != nil {
+				return errors.WrapIf(err, "failed to generate broker sets config")
+			}
+
+			o = r.configMap(clientPass, capacityConfig, brokerSetsConfig, log)
 			err = k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
 			if err != nil {
 				return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", o.GetObjectKind().GroupVersionKind())

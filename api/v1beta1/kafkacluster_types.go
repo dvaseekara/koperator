@@ -225,6 +225,8 @@ type BrokerConfig struct {
 	// If not specified, the broker pods' priority is default to zero.
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+	// Tag brokers with broker set id
+	BrokerSetId string `json:"brokerSetId,omitempty"`
 }
 
 type NetworkConfig struct {
