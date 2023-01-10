@@ -106,7 +106,8 @@ func (r *CruiseControlTaskReconciler) Reconcile(ctx context.Context, request ctr
 		}
 		details := []interface{}{"operation", "add broker", "brokers", brokerIDs}
 
-		result, err := scaler.AddBrokers(brokerIDs...)
+		// result, err := scaler.AddBrokers(brokerIDs...)
+		result, err := (*cruisecontrol.Result)(nil), error(nil)
 		if err != nil {
 			log.Error(err, "adding broker(s) to Kafka cluster via Cruise Control failed", details...)
 		}
