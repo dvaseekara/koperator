@@ -35,11 +35,12 @@ import (
 const (
 	// Constants for the Cruise Control operations parameters
 	// Check for more details: https://github.com/linkedin/cruise-control/wiki/REST-APIs
-	paramBrokerID       = "brokerid"
-	paramExcludeDemoted = "exclude_recently_demoted_brokers"
-	paramExcludeRemoved = "exclude_recently_removed_brokers"
-	paramDestbrokerIDs  = "destination_broker_ids"
-	paramRebalanceDisk  = "rebalance_disk"
+	ParamBrokerID           = "brokerid"
+	ParamExcludeDemoted     = "exclude_recently_demoted_brokers"
+	ParamExcludeRemoved     = "exclude_recently_removed_brokers"
+	ParamDestbrokerIDs      = "destination_broker_ids"
+	ParamRebalanceDisk      = "rebalance_disk"
+	ParamBrokerIDAndLogDirs = "brokerid_and_logdirs"
 	// Cruise Control API returns NullPointerException when a broker storage capacity calculations are missing
 	// from the Cruise Control configurations
 	nullPointerExceptionErrString = "NullPointerException"
@@ -50,21 +51,25 @@ const (
 var (
 	newCruiseControlScaler   = createNewDefaultCruiseControlScaler
 	addBrokerSupportedParams = map[string]struct{}{
-		paramBrokerID:       {},
-		paramExcludeDemoted: {},
-		paramExcludeRemoved: {},
+		ParamBrokerID:       {},
+		ParamExcludeDemoted: {},
+		ParamExcludeRemoved: {},
 	}
 	removeBrokerSupportedParams = map[string]struct{}{
-		paramBrokerID:       {},
-		paramExcludeDemoted: {},
-		paramExcludeRemoved: {},
+		ParamBrokerID:       {},
+		ParamExcludeDemoted: {},
+		ParamExcludeRemoved: {},
 	}
 	rebalanceSupportedParams = map[string]struct{}{
-		paramDestbrokerIDs:  {},
-		paramRebalanceDisk:  {},
-		paramExcludeDemoted: {},
-		paramExcludeRemoved: {},
+		ParamDestbrokerIDs:  {},
+		ParamRebalanceDisk:  {},
+		ParamExcludeDemoted: {},
+		ParamExcludeRemoved: {},
 	}
+	// TODO use this map to validate the parameters
+	//removeDisksSupportedParams = map[string]struct{}{
+	//	ParamBrokerIDAndLogDirs: {},
+	//}
 )
 
 func ScaleFactoryFn() func(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster) (CruiseControlScaler, error) {
@@ -205,19 +210,19 @@ func (cc *cruiseControlScaler) AddBrokersWithParams(ctx context.Context, params 
 	for param, pvalue := range params {
 		if _, ok := addBrokerSupportedParams[param]; ok {
 			switch param {
-			case paramBrokerID:
+			case ParamBrokerID:
 				ret, err := parseBrokerIDtoSlice(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				addBrokerReq.BrokerIDs = ret
-			case paramExcludeDemoted:
+			case ParamExcludeDemoted:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				addBrokerReq.ExcludeRecentlyDemotedBrokers = ret
-			case paramExcludeRemoved:
+			case ParamExcludeRemoved:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
@@ -282,19 +287,19 @@ func (cc *cruiseControlScaler) RemoveBrokersWithParams(ctx context.Context, para
 	for param, pvalue := range params {
 		if _, ok := removeBrokerSupportedParams[param]; ok {
 			switch param {
-			case paramBrokerID:
+			case ParamBrokerID:
 				ret, err := parseBrokerIDtoSlice(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				rmBrokerReq.BrokerIDs = ret
-			case paramExcludeDemoted:
+			case ParamExcludeDemoted:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				rmBrokerReq.ExcludeRecentlyDemotedBrokers = ret
-			case paramExcludeRemoved:
+			case ParamExcludeRemoved:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
@@ -464,25 +469,25 @@ func (cc *cruiseControlScaler) RebalanceWithParams(ctx context.Context, params m
 	for param, pvalue := range params {
 		if _, ok := rebalanceSupportedParams[param]; ok {
 			switch param {
-			case paramDestbrokerIDs:
+			case ParamDestbrokerIDs:
 				ret, err := parseBrokerIDtoSlice(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				rebalanceReq.DestinationBrokerIDs = ret
-			case paramRebalanceDisk:
+			case ParamRebalanceDisk:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				rebalanceReq.RebalanceDisk = ret
-			case paramExcludeDemoted:
+			case ParamExcludeDemoted:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
 				}
 				rebalanceReq.ExcludeRecentlyDemotedBrokers = ret
-			case paramExcludeRemoved:
+			case ParamExcludeRemoved:
 				ret, err := strconv.ParseBool(pvalue)
 				if err != nil {
 					return nil, err
@@ -513,6 +518,55 @@ func (cc *cruiseControlScaler) RebalanceWithParams(ctx context.Context, params m
 		RequestURL:         rebalanceResp.RequestURL,
 		Result:             rebalanceResp.Result,
 		State:              v1beta1.CruiseControlTaskActive,
+	}, nil
+}
+
+func (cc *cruiseControlScaler) RemoveDisksWithParams(ctx context.Context, params map[string]string) (*Result, error) {
+	// TODO uncomment code below once go-cruise-control supports remove disk
+	/*
+		rmDiskReq := &api.RemoveDiskRequest{
+			// TODO
+		}
+
+		for param, pvalue := range params {
+			if _, ok := removeDisksSupportedParams[param]; ok {
+				switch param {
+				case paramBrokerIDAndLogDirs:
+					// TODO
+				default:
+					return nil, fmt.Errorf("unsupported %s parameter: %s, supported parameters: %s", v1alpha1.OperationRemoveDisk, param, removeDiskSupportedParams)
+				}
+			}
+		}
+
+		rmDiskResp, err := cc.client.RemoveDisks(rmDiskReq)
+		if err != nil {
+			return &Result{
+				TaskID:             rmDiskResp.TaskID,
+				StartedAt:          rmDiskResp.Date,
+				ResponseStatusCode: rmDiskResp.StatusCode,
+				RequestURL:         rmDiskResp.RequestURL,
+				State:              v1beta1.CruiseControlTaskCompletedWithError,
+				Err:                err,
+			}, err
+		}
+
+		return &Result{
+			TaskID:             rmDiskResp.TaskID,
+			StartedAt:          rmDiskResp.Date,
+			ResponseStatusCode: rmDiskResp.StatusCode,
+			RequestURL:         rmDiskResp.RequestURL,
+			Result:             rmDiskResp.Result,
+			State:              v1beta1.CruiseControlTaskActive,
+		}, nil
+	*/
+
+	return &Result{
+		State:              v1beta1.CruiseControlTaskCompleted,
+		TaskID:             "15062281-b604-4f52-b465-fc8f8ff94d09",
+		StartedAt:          "Mon, 02 Jan 2006 15:04:05 MST",
+		ResponseStatusCode: 200,
+		RequestURL:         "http://kafka-cruisecontrol-svc.kafka.svc.cluster.local:8090",
 	}, nil
 }
 
