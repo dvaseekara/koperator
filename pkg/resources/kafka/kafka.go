@@ -958,6 +958,7 @@ func (r *Reconciler) isPodTainted(log logr.Logger, pod *corev1.Pod) bool {
 	return selector.Matches(labels.Set(pod.Labels))
 }
 
+//nolint:funlen
 func (r *Reconciler) reconcileKafkaPvc(ctx context.Context, log logr.Logger, brokersDesiredPvcs map[string][]*corev1.PersistentVolumeClaim) error {
 	brokersVolumesState := make(map[string]map[string]v1beta1.VolumeState)
 	var brokerIds []string
