@@ -1009,6 +1009,7 @@ func (r *Reconciler) reconcileKafkaPvc(ctx context.Context, log logr.Logger, bro
 					if !found {
 						// If the state is not found, it means that the disk removal was done according to the disk removal succeeded branch
 						log.Info("Disk removal was completed, waiting for Rolling Upgrade to remove PVC", "brokerId", brokerId, "mountPath", mountPathToRemove)
+						continue
 					}
 
 					// Check the volume state
