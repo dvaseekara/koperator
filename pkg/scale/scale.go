@@ -66,10 +66,9 @@ var (
 		ParamExcludeDemoted: {},
 		ParamExcludeRemoved: {},
 	}
-	// TODO use this map to validate the parameters
-	//removeDisksSupportedParams = map[string]struct{}{
-	//	ParamBrokerIDAndLogDirs: {},
-	//}
+	removeDisksSupportedParams = map[string]struct{}{
+		ParamBrokerIDAndLogDirs: {},
+	}
 )
 
 func ScaleFactoryFn() func(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster) (CruiseControlScaler, error) {
@@ -522,52 +521,78 @@ func (cc *cruiseControlScaler) RebalanceWithParams(ctx context.Context, params m
 }
 
 func (cc *cruiseControlScaler) RemoveDisksWithParams(ctx context.Context, params map[string]string) (*Result, error) {
-	// TODO uncomment code below once go-cruise-control supports remove disk
-	/*
-		rmDiskReq := &api.RemoveDiskRequest{
-			// TODO
-		}
+	removeReq := &api.RemoveDisksRequest{}
 
-		for param, pvalue := range params {
-			if _, ok := removeDisksSupportedParams[param]; ok {
-				switch param {
-				case paramBrokerIDAndLogDirs:
-					// TODO
-				default:
-					return nil, fmt.Errorf("unsupported %s parameter: %s, supported parameters: %s", v1alpha1.OperationRemoveDisk, param, removeDiskSupportedParams)
+	for param, pvalue := range params {
+		if _, ok := removeDisksSupportedParams[param]; ok {
+			switch param {
+			case ParamBrokerIDAndLogDirs:
+				ret, err := parseBrokerIDsAndLogDirsToMap(pvalue)
+				if err != nil {
+					return nil, err
 				}
+				removeReq.BrokerIDAndLogDirs = ret
+			default:
+				return nil, fmt.Errorf("unsupported %s parameter: %s, supported parameters: %s", v1alpha1.OperationRemoveDisks, param, removeDisksSupportedParams)
 			}
 		}
+	}
 
-		rmDiskResp, err := cc.client.RemoveDisks(rmDiskReq)
-		if err != nil {
-			return &Result{
-				TaskID:             rmDiskResp.TaskID,
-				StartedAt:          rmDiskResp.Date,
-				ResponseStatusCode: rmDiskResp.StatusCode,
-				RequestURL:         rmDiskResp.RequestURL,
-				State:              v1beta1.CruiseControlTaskCompletedWithError,
-				Err:                err,
-			}, err
-		}
-
+	if len(removeReq.BrokerIDAndLogDirs) == 0 {
 		return &Result{
-			TaskID:             rmDiskResp.TaskID,
-			StartedAt:          rmDiskResp.Date,
-			ResponseStatusCode: rmDiskResp.StatusCode,
-			RequestURL:         rmDiskResp.RequestURL,
-			Result:             rmDiskResp.Result,
-			State:              v1beta1.CruiseControlTaskActive,
+			State: v1beta1.CruiseControlTaskCompleted,
 		}, nil
-	*/
+	}
+
+	removeResp, err := cc.client.RemoveDisks(ctx, removeReq)
+	if err != nil {
+		return &Result{
+			TaskID:             removeResp.TaskID,
+			StartedAt:          removeResp.Date,
+			ResponseStatusCode: removeResp.StatusCode,
+			RequestURL:         removeResp.RequestURL,
+			State:              v1beta1.CruiseControlTaskCompletedWithError,
+			Err:                err,
+		}, err
+	}
 
 	return &Result{
-		State:              v1beta1.CruiseControlTaskCompleted,
-		TaskID:             "15062281-b604-4f52-b465-fc8f8ff94d09",
-		StartedAt:          "Mon, 02 Jan 2006 15:04:05 MST",
-		ResponseStatusCode: 200,
-		RequestURL:         "http://kafka-cruisecontrol-svc.kafka.svc.cluster.local:8090",
+		TaskID:             removeResp.TaskID,
+		StartedAt:          removeResp.Date,
+		ResponseStatusCode: removeResp.StatusCode,
+		RequestURL:         removeResp.RequestURL,
+		Result:             removeResp.Result,
+		State:              v1beta1.CruiseControlTaskActive,
 	}, nil
+}
+
+func parseBrokerIDsAndLogDirsToMap(brokerIDsAndLogDirs string) (map[int32][]string, error) {
+	// brokerIDsAndLogDirs format: brokerID1-logDir1,brokerID2-logDir2,brokerID1-logDir3
+	brokerIDLogDirMap := make(map[int32][]string)
+
+	if len(brokerIDsAndLogDirs) == 0 {
+		return brokerIDLogDirMap, nil
+	}
+
+	pairs := strings.Split(brokerIDsAndLogDirs, ",")
+	for _, pair := range pairs {
+		components := strings.SplitN(pair, "-", 2)
+		if len(components) != 2 {
+			return nil, errors.New("invalid format for brokerIDsAndLogDirs")
+		}
+
+		brokerID, err := strconv.ParseInt(components[0], 10, 32)
+		if err != nil {
+			return nil, errors.New("invalid broker ID")
+		}
+
+		logDir := components[1]
+
+		// Add logDir to the corresponding brokerID's list
+		brokerIDLogDirMap[int32(brokerID)] = append(brokerIDLogDirMap[int32(brokerID)], logDir)
+	}
+
+	return brokerIDLogDirMap, nil
 }
 
 func (cc *cruiseControlScaler) KafkaClusterLoad(ctx context.Context) (*api.KafkaClusterLoadResponse, error) {
