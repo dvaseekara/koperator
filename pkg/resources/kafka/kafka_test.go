@@ -25,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -1136,8 +1135,11 @@ func TestReconcileKafkaPvcDiskRemoval(t *testing.T) {
 		},
 	}
 
+	mockCtrl := gomock.NewController(t)
+
 	for _, test := range testCases {
-		mockClient := new(mocks.Client)
+		mockClient := mocks.NewMockClient(mockCtrl)
+		mockSubResourceClient := mocks.NewMockSubResourceClient(mockCtrl)
 		t.Run(test.testName, func(t *testing.T) {
 			r := Reconciler{
 				Reconciler: resources.Reconciler{
@@ -1152,33 +1154,31 @@ func TestReconcileKafkaPvcDiskRemoval(t *testing.T) {
 			}
 
 			// Set up the mockClient to return the provided test.existingPvcs
-			mockClient.On(
-				"List",
+			mockClient.EXPECT().List(
 				context.TODO(),
-				mock.IsType(&corev1.PersistentVolumeClaimList{}),
+				gomock.AssignableToTypeOf(&corev1.PersistentVolumeClaimList{}),
 				client.InNamespace("kafka"),
-				mock.AnythingOfType("client.MatchingLabels"),
-			).Run(func(args mock.Arguments) {
-				arg := args.Get(1).(*corev1.PersistentVolumeClaimList)
-
+				gomock.Any(),
+			).Do(func(ctx context.Context, list *corev1.PersistentVolumeClaimList, opts ...client.ListOption) {
 				// Convert []*corev1.PersistentVolumeClaim to []corev1.PersistentVolumeClaim
 				pvcItems := make([]corev1.PersistentVolumeClaim, len(test.existingPvcs))
 				for i, pvc := range test.existingPvcs {
 					pvcItems[i] = *pvc
 				}
 
-				arg.Items = pvcItems
-			}).Return(nil)
+				list.Items = pvcItems
+			}).Return(nil).AnyTimes()
 
 			// Mock the client.Delete call
-			mockClient.On("Delete", context.TODO(), mock.AnythingOfType("*v1.PersistentVolumeClaim")).Return(nil)
+			if test.expectedDeletePvc {
+				mockClient.EXPECT().Delete(context.TODO(), gomock.AssignableToTypeOf(&corev1.PersistentVolumeClaim{})).Return(nil)
+			}
 
 			// Mock the status update call
-			mockClient.On("Status").Return(mockClient)
-			mockClient.On("Update", context.TODO(), mock.AnythingOfType("*v1beta1.KafkaCluster")).Run(func(args mock.Arguments) {
-				arg := args.Get(1).(*v1beta1.KafkaCluster)
-				r.KafkaCluster.Status = arg.Status
-			}).Return(nil)
+			mockClient.EXPECT().Status().Return(mockSubResourceClient).AnyTimes()
+			mockSubResourceClient.EXPECT().Update(context.TODO(), gomock.AssignableToTypeOf(&v1beta1.KafkaCluster{})).Do(func(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, opts ...client.SubResourceUpdateOption) {
+				r.KafkaCluster.Status = kafkaCluster.Status
+			}).Return(nil).AnyTimes()
 
 			// Set up the r.KafkaCluster.Status with the provided test.kafkaClusterStatus
 			r.KafkaCluster.Status = test.kafkaClusterStatus
@@ -1191,13 +1191,6 @@ func TestReconcileKafkaPvcDiskRemoval(t *testing.T) {
 				assert.NotNil(t, err, "Expected an error but got nil")
 			} else {
 				assert.Nil(t, err, "Expected no error but got an error")
-			}
-
-			// Test that PVC is deleted if expected
-			if test.expectedDeletePvc {
-				mockClient.AssertCalled(t, "Delete", context.TODO(), mock.AnythingOfType("*v1.PersistentVolumeClaim"))
-			} else {
-				mockClient.AssertNotCalled(t, "Delete", context.TODO(), mock.AnythingOfType("*v1.PersistentVolumeClaim"))
 			}
 
 			// Test that the expected volume state is set
@@ -1254,6 +1247,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 				Spec: v1beta1.KafkaClusterSpec{
 					Brokers: []v1beta1.Broker{{Id: 101}, {Id: 201}, {Id: 301}},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod:    &corev1.Pod{},
 			currentPod:    &corev1.Pod{},
@@ -1270,6 +1264,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 				Spec: v1beta1.KafkaClusterSpec{
 					Brokers: []v1beta1.Broker{{Id: 101}, {Id: 201}, {Id: 301}},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-201"}},
@@ -1293,6 +1288,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						ConcurrentBrokerRestartsAllowed: 2,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-301"}},
@@ -1316,6 +1312,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						ConcurrentBrokerRestartsAllowed: 2,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-102", Labels: map[string]string{"brokerId": "102"}}},
@@ -1348,6 +1345,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						ConcurrentBrokerRestartsAllowed: 2,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-102", Labels: map[string]string{"brokerId": "102"}}},
@@ -1380,6 +1378,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						FailureThreshold: 1,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-102", Labels: map[string]string{"brokerId": "102"}}},
@@ -1413,6 +1412,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						FailureThreshold: 1,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-102", Labels: map[string]string{"brokerId": "102"}}},
@@ -1446,6 +1446,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						ConcurrentBrokerRestartsAllowed: 2,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-201", Labels: map[string]string{"brokerId": "201"}}},
@@ -1480,6 +1481,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						ConcurrentBrokerRestartsAllowed: 2,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-101", Labels: map[string]string{"brokerId": "101"}}},
@@ -1514,6 +1516,7 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 						ConcurrentBrokerRestartsAllowed: 2,
 					},
 				},
+				Status: v1beta1.KafkaClusterStatus{State: v1beta1.KafkaClusterRollingUpgrading},
 			},
 			desiredPod: &corev1.Pod{},
 			currentPod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "kafka-102", Labels: map[string]string{"brokerId": "102"}}},
@@ -1530,30 +1533,27 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 		},
 	}
 
+	mockCtrl := gomock.NewController(t)
+
 	for _, test := range testCases {
-		mockClient := new(mocks.Client)
+		mockClient := mocks.NewMockClient(mockCtrl)
 		mockKafkaClientProvider := new(kafkaclient.MockedProvider)
 
 		t.Run(test.testName, func(t *testing.T) {
 			r := New(mockClient, nil, &test.kafkaCluster, mockKafkaClientProvider)
 
 			// Mock client
-			mockClient.On("Status").Return(mockClient)
-			mockClient.On("Update", context.TODO(), mock.AnythingOfType("*v1beta1.KafkaCluster")).Run(func(args mock.Arguments) {
-				arg := args.Get(1).(*v1beta1.KafkaCluster)
-				r.KafkaCluster.Status = arg.Status
-			}).Return(nil)
-			mockClient.On(
-				"List",
+			mockClient.EXPECT().List(
 				context.TODO(),
-				mock.IsType(&corev1.PodList{}),
+				gomock.AssignableToTypeOf(&corev1.PodList{}),
 				client.InNamespace("kafka"),
-				mock.AnythingOfType("client.MatchingLabels"),
-			).Run(func(args mock.Arguments) {
-				arg := args.Get(1).(*corev1.PodList)
-				arg.Items = test.pods
+				gomock.Any(),
+			).Do(func(ctx context.Context, list *corev1.PodList, opts ...client.ListOption) {
+				list.Items = test.pods
 			}).Return(nil)
-			mockClient.On("Delete", context.TODO(), mock.IsType(&corev1.Pod{})).Return(nil)
+			if !test.errorExpected {
+				mockClient.EXPECT().Delete(context.TODO(), test.currentPod).Return(nil)
+			}
 
 			// Mock kafka client
 			mockedKafkaClient := new(mocks.KafkaClient)
@@ -1567,10 +1567,8 @@ func TestReconcileConcurrentBrokerRestartsAllowed(t *testing.T) {
 			// Test that the expected error is returned
 			if test.errorExpected {
 				assert.NotNil(t, err, "Expected an error but got nil")
-				mockClient.AssertNotCalled(t, "Delete", context.TODO(), mock.IsType(&corev1.Pod{}))
 			} else {
 				assert.Nil(t, err, "Expected no error but got one")
-				mockClient.AssertCalled(t, "Delete", context.TODO(), mock.IsType(&corev1.Pod{}))
 			}
 		})
 	}
