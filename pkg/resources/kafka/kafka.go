@@ -1167,8 +1167,7 @@ func isDesiredStorageValueInvalid(desired, current *corev1.PersistentVolumeClaim
 
 func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v1beta1.Broker, eListener v1beta1.ExternalListenerConfig) (string, error) {
 	brokerHost := defaultHost
-	portNumber := eListener.ExternalStartingPort + broker.Id
-
+	portNumber := eListener.GetBrokerPort(broker.Id)
 	if eListener.GetAccessMethod() != corev1.ServiceTypeLoadBalancer {
 		bConfig, err := broker.GetBrokerConfig(r.KafkaCluster.Spec)
 		if err != nil {
@@ -1199,6 +1198,13 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 			}
 		} else {
 			brokerHost = fmt.Sprintf("%s-%d-%s.%s%s", r.KafkaCluster.Name, broker.Id, eListener.Name, r.KafkaCluster.Namespace, brokerHost)
+		}
+	} else {
+		if eListener.TLSEnabled() {
+			brokerHost = eListener.GetBrokerHostname(broker.Id)
+			if brokerHost == "" {
+				return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
+			}
 		}
 	}
 	return fmt.Sprintf("%s:%d", brokerHost, portNumber), nil
@@ -1278,6 +1284,7 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 				if err != nil {
 					return nil, err
 				}
+
 				if util.ShouldIncludeBroker(brokerConfig, r.KafkaCluster.Status, int(broker.Id), defaultControllerName, iConfigName) {
 					listenerStatus := v1beta1.ListenerStatus{
 						Name:    fmt.Sprintf("broker-%d", broker.Id),

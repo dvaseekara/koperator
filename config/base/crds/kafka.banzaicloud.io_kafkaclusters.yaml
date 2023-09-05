@@ -18225,6 +18225,9 @@ spec:
                   serviceAccountName:
                     description: ServiceAccountName is the name of service account
                     type: string
+                  tlsSecretName:
+                    description: TLS secret
+                    type: string
                   tolerations:
                     items:
                       description: The pod this Toleration is attached to tolerates
@@ -18920,6 +18923,11 @@ spec:
                             cluster
                           format: int32
                           type: integer
+                        brokerHostnameTemplate:
+                          description: Template used to generate broker hostnames
+                            for tls enabled envoy. %id will be replaced with brokerId
+                            value
+                          type: string
                         config:
                           description: Config allows to specify ingress controller
                             configuration per external listener if set, it overrides
@@ -20559,6 +20567,9 @@ spec:
                                         description: ServiceAccountName is the name
                                           of service account
                                         type: string
+                                      tlsSecretName:
+                                        description: TLS secret
+                                        type: string
                                       tolerations:
                                         items:
                                           description: The pod this Toleration is
@@ -21362,6 +21373,9 @@ spec:
                           - requested
                           - none
                           type: string
+                        terminateTLSAtIngress:
+                          description: Terminate tls at ingress level
+                          type: boolean
                         type:
                           description: 'SecurityProtocol is the protocol used to communicate
                             with brokers. Valid values are: plaintext, ssl, sasl_plaintext,

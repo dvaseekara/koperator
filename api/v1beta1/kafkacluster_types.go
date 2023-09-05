@@ -16,6 +16,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"emperror.dev/errors"
@@ -449,10 +450,11 @@ type EnvoyConfig struct {
 	// EnableHealthCheckHttp10 is a toggle for adding HTTP1.0 support to Envoy health-check, default false
 	// +optional
 	EnableHealthCheckHttp10 bool `json:"enableHealthCheckHttp10,omitempty"`
-
 	// PodSecurityContext holds pod-level security attributes and common container
 	// settings for the Envoy pods.
 	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+	// TLS secret
+	TLSSecretName string `json:"tlsSecretName,omitempty"`
 }
 
 // EnvoyCommandLineArgs defines envoy command line arguments
@@ -565,6 +567,26 @@ func (c ExternalListenerConfig) GetIngressControllerTargetPort() int32 {
 	return *c.IngressControllerTargetPort
 }
 
+// When TLS is enabled AnyCastPort is enough since hostname based multiplexing
+// is used and not port based one
+func (c ExternalListenerConfig) GetBrokerPort(brokerId int32) int32 {
+	if c.TLSEnabled() {
+		return c.GetAnyCastPort()
+	} else {
+		return c.ExternalStartingPort + brokerId
+	}
+}
+
+// We use -1 for ExternalStartingPort value to enable TLS on envoy
+func (c ExternalListenerConfig) TLSEnabled() bool {
+	return c.TerminateTLSAtIngress
+}
+
+// Replace %id in brokerHostnameTemplate with actual broker id
+func (i ExternalListenerConfig) GetBrokerHostname(brokerId int32) string {
+	return strings.Replace(i.BrokerHostnameTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
+}
+
 // GetServiceAnnotations returns a copy of the ServiceAnnotations field.
 func (c IngressServiceSettings) GetServiceAnnotations() map[string]string {
 	return util.CloneMap(c.ServiceAnnotations)
@@ -659,6 +681,11 @@ type ExternalListenerConfig struct {
 	// if set, it overrides the default `KafkaClusterSpec.IstioIngressConfig` or `KafkaClusterSpec.EnvoyConfig` for this external listener.
 	// +optional
 	Config *Config `json:"config,omitempty"`
+	// Terminate tls at ingress level
+	// +optional
+	TerminateTLSAtIngress bool `json:"terminateTLSAtIngress,omitempty"`
+	// Template used to generate broker hostnames for tls enabled envoy. %id will be replaced with brokerId value
+	BrokerHostnameTemplate string `json:"brokerHostnameTemplate,omitempty"`
 }
 
 // Config defines the external access ingress controller configuration
@@ -889,6 +916,11 @@ func (eConfig *EnvoyConfig) GetReplicas() int32 {
 		return defaultEnvoyReplicas
 	}
 	return eConfig.Replicas
+}
+
+// GetTlsSecretName
+func (eConfig *EnvoyConfig) GetTlsSecretName() string {
+	return eConfig.TLSSecretName
 }
 
 // GetServiceAccount returns the Kubernetes Service Account to use for Kafka Cluster

@@ -66,6 +66,26 @@ func (r *Reconciler) deployment(log logr.Logger, extListener v1beta1.ExternalLis
 		},
 	}
 
+	if extListener.TLSEnabled() {
+		volumes = append(volumes, corev1.Volume{
+			Name: "certificate",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: ingressConfig.EnvoyConfig.GetTlsSecretName(),
+					Items: []corev1.KeyToPath{
+						{Key: "tls.crt", Path: "certificate.crt"},
+						{Key: "tls.key", Path: "private.key"},
+					},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "certificate",
+			MountPath: "/certs",
+			ReadOnly:  true,
+		})
+	}
+
 	arguments := []string{"-c", "/etc/envoy/envoy.yaml"}
 	if ingressConfig.EnvoyConfig.GetConcurrency() > 0 {
 		arguments = append(arguments, "--concurrency", strconv.Itoa(int(ingressConfig.EnvoyConfig.GetConcurrency())))
@@ -136,10 +156,10 @@ func getExposedContainerPorts(extListener v1beta1.ExternalListenerConfig, broker
 			log.Error(err, "could not determine brokerConfig")
 			continue
 		}
-		if util.ShouldIncludeBroker(brokerConfig, kafkaCluster.Status, brokerId, defaultIngressConfigName, ingressConfigName) {
+		if util.ShouldIncludeBroker(brokerConfig, kafkaCluster.Status, brokerId, defaultIngressConfigName, ingressConfigName) && !extListener.TLSEnabled() {
 			exposedPorts = append(exposedPorts, corev1.ContainerPort{
 				Name:          fmt.Sprintf("broker-%d", brokerId),
-				ContainerPort: extListener.ExternalStartingPort + int32(brokerId),
+				ContainerPort: extListener.GetBrokerPort(int32(brokerId)),
 				Protocol:      corev1.ProtocolTCP,
 			})
 		}
