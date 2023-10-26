@@ -243,3 +243,16 @@ rules:
   # Export metrics for kafka tiered storage
   - pattern: org.apache.kafka.storage.internals.log.+
   - pattern: kafka.log.+
+  # Tiered Storage Metrics
+  - pattern: aiven.kafka.server.tieredstorage<type=remote-storage-manager-metrics><>(.+-total|.+-rate|.+-avg|.+-max)
+    name: kafka_tiered_storage_rsm_$1
+    type: GAUGE
+  - pattern: aiven.kafka.server.tieredstorage.cache<type=segment-manifest-cache><>(.+-total|.+-rate|.+-avg|.+-max)
+    name: kafka_tiered_storage_cache_segment_manifest_$1
+    type: GAUGE
+  - pattern: aiven.kafka.server.tieredstorage.cache<type=chunk-cache><>(.+-total|.+-rate|.+-avg|.+-max)
+    name: kafka_tiered_storage_cache_chunk_$1
+    type: GAUGE
+  - pattern: aiven.kafka.server.tieredstorage.s3<type=s3-metrics><>(.+-total|.+-rate|.+-avg|.+-max)
+    name: kafka_tiered_storage_backend_s3_$1
+    type: GAUGE
