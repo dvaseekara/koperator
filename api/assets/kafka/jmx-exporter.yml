@@ -240,3 +240,6 @@ rules:
   # Export all other java.{lang,nio}* beans using default format
   - pattern: java.lang.+
   - pattern: java.nio.+
+  # Export metrics for kafka tiered storage
+  - pattern: org.apache.kafka.storage.internals.log.+
+  - pattern: kafka.log.+
