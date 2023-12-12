@@ -23,7 +23,9 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
+	ccTypes "github.com/banzaicloud/go-cruise-control/pkg/types"
 	"github.com/go-logr/logr"
+	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -845,6 +847,7 @@ func (r *Reconciler) updateStatusWithDockerImageAndVersion(brokerId int32, broke
 	return nil
 }
 
+//gocyclo:ignore
 func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPod *corev1.Pod, desiredType reflect.Type) error {
 	// Since toleration does not support patchStrategy:"merge,retainKeys",
 	// we need to add all toleration from the current pod if the toleration is set in the CR
@@ -982,6 +985,52 @@ func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPo
 	}
 	log.Info("broker pod deleted", "pod", currentPod.GetName(), v1beta1.BrokerIdLabelKey, currentPod.Labels[v1beta1.BrokerIdLabelKey])
 	return nil
+}
+
+func (r *Reconciler) checkCCRackAwareDistributionGoal() error {
+	cruiseControlURL := scale.CruiseControlURLFromKafkaCluster(r.KafkaCluster)
+	cc, err := r.CruiseControlScalerFactory(context.TODO(), r.KafkaCluster)
+	if err != nil {
+		return errorfactory.New(errorfactory.CruiseControlNotReady{}, err, "failed to initialize Cruise Control", "cruise control url", cruiseControlURL)
+	}
+	status, err := cc.Status(context.Background())
+	if err != nil {
+		return errorfactory.New(errorfactory.CruiseControlNotReady{}, errors.New("failed to get status from Cruise Control"), "rolling upgrade in progress")
+	}
+	if !slices.Contains(status.State.AnalyzerState.ReadyGoals, ccTypes.RackAwareDistributionGoal) {
+		return errorfactory.New(errorfactory.ReconcileRollingUpgrade{}, errors.New("RackAwareDistributionGoal is not ready"), "rolling upgrade in progress")
+	}
+	for _, anomaly := range status.State.AnomalyDetectorState.RecentGoalViolations {
+		if slices.Contains(anomaly.FixableViolatedGoals, ccTypes.RackAwareDistributionGoal) || slices.Contains(anomaly.UnfixableViolatedGoals, ccTypes.RackAwareDistributionGoal) {
+			return errorfactory.New(errorfactory.ReconcileRollingUpgrade{}, errors.New("RackAwareDistributionGoal is violated"), "rolling upgrade in progress")
+		}
+	}
+	return nil
+}
+
+func (r *Reconciler) existsFailedBrokerFromAnotherRack(currentPodAz string, impactedReplicas map[int32]struct{}, kafkaBrokerAvailabilityZoneMap map[int32]string) bool {
+	if currentPodAz == "" && len(impactedReplicas) > 0 {
+		return true
+	}
+	for brokerWithFailure := range impactedReplicas {
+		if currentPodAz != kafkaBrokerAvailabilityZoneMap[brokerWithFailure] {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Reconciler) existsTerminatingPodFromAnotherAz(currentPodAz string, terminatingOrPendingPods []corev1.Pod, kafkaBrokerAvailabilityZoneMap map[int32]string) bool {
+	if currentPodAz == "" && len(terminatingOrPendingPods) > 0 {
+		return true
+	}
+	for _, terminatingOrPendingPod := range terminatingOrPendingPods {
+		terminatingOrPendingPodAz, err := r.getBrokerAz(&terminatingOrPendingPod, kafkaBrokerAvailabilityZoneMap)
+		if err != nil || currentPodAz != terminatingOrPendingPodAz {
+			return true
+		}
+	}
+	return false
 }
 
 // Checks for match between pod labels and TaintedBrokersSelector
