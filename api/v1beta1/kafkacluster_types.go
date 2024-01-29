@@ -16,10 +16,12 @@ package v1beta1
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"emperror.dev/errors"
-	"github.com/imdario/mergo"
+
+	"dario.cat/mergo"
 
 	"github.com/banzaicloud/istio-client-go/pkg/networking/v1beta1"
 
@@ -36,24 +38,8 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 const (
-	// DefaultServiceAccountName name used for the various ServiceAccounts
-	DefaultServiceAccountName = "default"
-	// DefaultAnyCastPort kafka anycast port that can be used by clients for metadata queries
-	DefaultAnyCastPort = 29092
-	// DefaultIngressControllerTargetPort is the default container port for the ingress controller
-	DefaultIngressControllerTargetPort = 29092
-	// DefaultEnvoyHealthCheckPort envoy health check port
-	DefaultEnvoyHealthCheckPort = 8080
-	// DefaultEnvoyAdminPort envoy admin port
-	DefaultEnvoyAdminPort = 8081
-	// DefaultBrokerTerminationGracePeriod default kafka pod termination grace period
-	DefaultBrokerTerminationGracePeriod = 120
-
-	// AppLabelKey is used to represent the reserved operator label, "app"
-	AppLabelKey = "app"
-	// KafkaCRLabelKey is used to represent the reserved operator label, "kafka_cr"
-	KafkaCRLabelKey = "kafka_cr"
-	// BrokerIdLabelKey is used to represent the reserved operator label, "brokerId"
+	AppLabelKey      = "app"
+	KafkaCRLabelKey  = "kafka_cr"
 	BrokerIdLabelKey = "brokerId"
 
 	// ProcessRolesKey is used to identify which process roles the Kafka pod has
@@ -69,6 +55,94 @@ const (
 	ControllerNodeProcessRole = "controller"
 	// BrokerNodeProcessRole represents the node is a broker node
 	BrokerNodeProcessRole = "broker"
+	// These are default values for API keys
+
+	/* General Config */
+	defaultServiceAccountName = "default"
+
+	/* External Listener Config */
+
+	// defaultAnyCastPort kafka anycast port that can be used by clients for metadata queries
+	defaultAnyCastPort                 = 29092
+	defaultIngressControllerTargetPort = 29092
+
+	/* Envoy Config */
+
+	// KafkaClusterDeployment.spec.replicas
+	defaultEnvoyReplicas = 1
+	// KafkaClusterDeployment.spec.template.spec.container["envoy"].port["tcp-admin"].containerPort
+	defaultEnvoyAdminPort = 8081
+	// KafkaClusterDeployment.spec.template.spec.container["envoy"].port["tcp-health"].containerPort
+	defaultEnvoyHealthCheckPort = 8080
+	// KafkaClusterDeployment.spec.template.spec.container["envoy"].args
+	defaultEnvoyConcurrency = 0
+
+	// KafkaClusterDeployment.spec.template.spec.container["envoy"].resource
+	defaultEnvoyRequestResourceCpu    = "100m"
+	defaultEnvoyRequestResourceMemory = "100Mi"
+	defaultEnvoyLimitResourceCpu      = "100m"
+	defaultEnvoyLimitResourceMemory   = "100Mi"
+
+	// KafkaClusterDeployment.spec.template.spec.container["envoy"].image
+	defaultEnvoyImage = "envoyproxy/envoy:v1.22.2"
+
+	/* Broker Config */
+
+	// KafkaBrokerPod.spec.terminationGracePeriodSeconds
+	defaultBrokerTerminationGracePeriod = 120
+
+	// KafkaBrokerPod.spec.container["kafka"].resource
+	defaultBrokerRequestResourceCpu    = "1000m"
+	defaultBrokerRequestResourceMemory = "2Gi"
+	defaultBrokerLimitResourceCpu      = "1500m"
+	defaultBrokerLimitResourceMemory   = "3Gi"
+
+	defaultBrokerHeapOpts    = "-Xmx2G -Xms2G"
+	defaultBrokerPerfJvmOpts = "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+ExplicitGCInvokesConcurrent -Djava.awt.headless=true -Dsun.net.inetaddr.ttl=60"
+
+	/* Cruise Control Config */
+
+	// CruiseControlDeployment.spec.template.spec.container["%s-cruisecontrol"].image
+	defaultCruiseControlImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
+
+	// CruiseControlDeployment.spec.template.spec.container["%s-cruisecontrol"].resources
+	defaultCruiseControlRequestResourceCpu    = "200m"
+	defaultCruiseControlRequestResourceMemory = "768Mi"
+	defaultCruiseControlLimitResourceCpu      = "200m"
+	defaultCruiseControlLimitResourceMemory   = "768Mi"
+
+	// Cruise Control Task
+	defaultCruiseControlTaskDurationMin = 5
+
+	// Kafka Cluster Spec
+	defaultKafkaClusterIngressController = "envoy"
+	defaultKafkaClusterK8sClusterDomain  = "cluster.local"
+
+	// KafkaBroker.spec.container["kafka"].image
+	defaultKafkaImage = "ghcr.io/banzaicloud/kafka:2.13-3.4.1"
+
+	/* Istio Ingress Config */
+
+	// IstioMeshGateway.spec.deployment.resources
+	defaultIstioIngressRequestResourceCpu    = "100m"
+	defaultIstioIngressRequestResourceMemory = "128Mi"
+	defaultIstioIngressLimitResourceCpu      = "2000m"
+	defaultIstioIngressLimitResourceMemory   = "1024Mi"
+
+	// IstioMeshGateway.spec.deployment.replicas.count
+	// IstioMeshGateway.spec.deployment.replicas.min
+	// IstioMeshGateway.spec.deployment.replicas.max
+	defaultReplicas = 1
+
+	/* Monitor Config */
+
+	// KafkaBrokerPod.spec.initContainer[jmx-exporter].image
+	// kafkaClusterDeployment.spec.template.spec.initContainer["jmx-exporter"].image
+	defaultMonitorImage = "ghcr.io/banzaicloud/jmx-javaagent:0.16.1"
+
+	// KafkaBrokerPod.spec.initContainer["jmx-exporter"].command
+	// kafkaClusterDeployment.spec.template.spec.initContainer["jmx-exporter"].command
+	defaultMonitorPathToJar = "/jmx_prometheus_javaagent.jar"
 )
 
 // KafkaClusterSpec defines the desired state of KafkaCluster
@@ -102,6 +176,8 @@ type KafkaClusterSpec struct {
 	Brokers                     []Broker                `json:"brokers"`
 	DisruptionBudget            DisruptionBudget        `json:"disruptionBudget,omitempty"`
 	RollingUpgradeConfig        RollingUpgradeConfig    `json:"rollingUpgradeConfig"`
+	// Selector for broker pods that need to be recycled/reconciled
+	TaintedBrokersSelector *metav1.LabelSelector `json:"taintedBrokersSelector,omitempty"`
 	// +kubebuilder:validation:Enum=envoy;istioingress
 	// IngressController specifies the type of the ingress controller to be used for external listeners. The `istioingress` ingress controller type requires the `spec.istioControlPlane` field to be populated as well.
 	IngressController string `json:"ingressController,omitempty"`
@@ -163,17 +239,15 @@ type RollingUpgradeConfig struct {
 	// alerts with 'rollingupgrade'
 	FailureThreshold int `json:"failureThreshold"`
 
-	// ConcurrentBrokerRestartCountPerRack controls how many brokers can be restarted in parallel during a rolling upgrade. If
+	// ConcurrentBrokerRestartsAllowed controls how many brokers can be restarted in parallel during a rolling upgrade. If
 	// it is set to a value greater than 1, the operator will restart up to that amount of brokers in parallel, if the
 	// brokers are within the same rack (as specified by "broker.rack" in broker read-only configs). Since using Kafka broker
 	// racks spreads out the replicas, we know that restarting multiple brokers in the same rack will not cause more than
 	// 1/Nth of the replicas of a topic-partition to be unavailable at the same time, where N is the number of racks used.
 	// This is a safe way to speed up the rolling upgrade. Note that for the rack distribution explained above, Cruise Control
-	// requires `com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareDistributionGoal` to be configured. Default value is 1.
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:default=1
+	// requires `com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareDistributionGoal` to be configured.
 	// +optional
-	ConcurrentBrokerRestartCountPerRack int `json:"concurrentBrokerRestartCountPerRack,omitempty"`
+	ConcurrentBrokerRestartsAllowed int `json:"concurrentBrokerRestartsAllowed,omitempty"`
 }
 
 // DisruptionBudget defines the configuration for PodDisruptionBudget where the workload is managed by the kafka-operator
@@ -404,6 +478,8 @@ type EnvoyConfig struct {
 	// If not specified, the Envoy pods' priority is default to zero
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+	// Template used to generate broker hostnames for tls enabled envoy. %id will be replaced with brokerId value
+	BrokerHostnameTemplate string `json:"brokerHostnameTemplate,omitempty"`
 	// EnableHealthCheckHttp10 is a toggle for adding HTTP1.0 support to Envoy health-check, default false
 	// +optional
 	EnableHealthCheckHttp10 bool `json:"enableHealthCheckHttp10,omitempty"`
@@ -509,7 +585,7 @@ func (c ExternalListenerConfig) GetAccessMethod() corev1.ServiceType {
 
 func (c ExternalListenerConfig) GetAnyCastPort() int32 {
 	if c.AnyCastPort == nil {
-		return DefaultAnyCastPort
+		return defaultAnyCastPort
 	}
 	return *c.AnyCastPort
 }
@@ -518,9 +594,19 @@ func (c ExternalListenerConfig) GetAnyCastPort() int32 {
 // otherwise it returns the DefaultIngressControllerTargetPort value
 func (c ExternalListenerConfig) GetIngressControllerTargetPort() int32 {
 	if c.IngressControllerTargetPort == nil {
-		return DefaultIngressControllerTargetPort
+		return defaultIngressControllerTargetPort
 	}
 	return *c.IngressControllerTargetPort
+}
+
+// GetBrokerPort - When TLS is enabled AnyCastPort is enough since hostname based multiplexing
+// is used and not port based one
+func (c ExternalListenerConfig) GetBrokerPort(brokerId int32) int32 {
+	if c.TLSEnabled() {
+		return c.GetAnyCastPort()
+	} else {
+		return c.ExternalStartingPort + brokerId
+	}
 }
 
 // GetServiceAnnotations returns a copy of the ServiceAnnotations field.
@@ -534,6 +620,16 @@ func (c IngressServiceSettings) GetServiceType() corev1.ServiceType {
 		return corev1.ServiceTypeLoadBalancer
 	}
 	return c.ServiceType
+}
+
+// Replace %id in brokerHostnameTemplate with actual broker id
+func (c EnvoyConfig) GetBrokerHostname(brokerId int32) string {
+	return strings.Replace(c.BrokerHostnameTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
+}
+
+// We use -1 for ExternalStartingPort value to enable TLS on envoy
+func (c ExternalListenerConfig) TLSEnabled() bool {
+	return c.ExternalStartingPort == -1
 }
 
 // SSLSecrets defines the Kafka SSL secrets
@@ -591,7 +687,7 @@ type IngressServiceSettings struct {
 type ExternalListenerConfig struct {
 	CommonListenerSpec     `json:",inline"`
 	IngressServiceSettings `json:",inline"`
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum=-1
 	// +kubebuilder:validation:Maximum=65535
 	// externalStartingPort is added to each broker ID to get the port number that will be used for external access to the broker.
 	// The choice of broker ID and externalStartingPort must satisfy 0 < broker ID + externalStartingPort <= 65535
@@ -617,6 +713,8 @@ type ExternalListenerConfig struct {
 	// if set, it overrides the default `KafkaClusterSpec.IstioIngressConfig` or `KafkaClusterSpec.EnvoyConfig` for this external listener.
 	// +optional
 	Config *Config `json:"config,omitempty"`
+	// TLS secret
+	TLSSecretName string `json:"tlsSecretName,omitempty"`
 }
 
 // Config defines the external access ingress controller configuration
@@ -633,9 +731,16 @@ type IngressConfig struct {
 
 // InternalListenerConfig defines the internal listener config for Kafka
 type InternalListenerConfig struct {
-	CommonListenerSpec              `json:",inline"`
-	UsedForInnerBrokerCommunication bool `json:"usedForInnerBrokerCommunication"`
-	UsedForControllerCommunication  bool `json:"usedForControllerCommunication,omitempty"`
+	CommonListenerSpec             `json:",inline"`
+	UsedForControllerCommunication bool `json:"usedForControllerCommunication,omitempty"`
+	// This following options are helpful when you want to run a Kafka cluster over multiple Kubernetes clusters.
+	// The broker internal ports are computed as the sum of the internalStartingPort and the broker id.
+	// +optional
+	InternalStartingPort int32 `json:"internalStartingPort"`
+	// If set to a non-empty value, the Kafka brokers will use the external hostname for inter broker communication.
+	// The internal lister will will share the same hostname with the external listener that is referenced here.
+	// +optional
+	ExternalListenerForHostname string `json:"externalListenerForHostname,omitempty"`
 }
 
 // CommonListenerSpec defines the common building block for Listener type
@@ -656,6 +761,9 @@ type CommonListenerSpec struct {
 	// +kubebuilder:validation:ExclusiveMinimum=true
 	// +kubebuilder:validation:Maximum=65535
 	ContainerPort int32 `json:"containerPort"`
+	// At least one of the listeners should have this flag enabled
+	// +optional
+	UsedForInnerBrokerCommunication bool `json:"usedForInnerBrokerCommunication"`
 }
 
 func (c *CommonListenerSpec) GetServerSSLCertSecretName() string {
@@ -731,12 +839,12 @@ func (iIConfig *IstioIngressConfig) GetResources() *corev1.ResourceRequirements 
 	}
 	return &corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
-			"cpu":    resource.MustParse("100m"),
-			"memory": resource.MustParse("128Mi"),
+			"cpu":    resource.MustParse(defaultIstioIngressRequestResourceCpu),
+			"memory": resource.MustParse(defaultIstioIngressRequestResourceMemory),
 		},
 		Limits: corev1.ResourceList{
-			"cpu":    resource.MustParse("2000m"),
-			"memory": resource.MustParse("1024Mi"),
+			"cpu":    resource.MustParse(defaultIstioIngressLimitResourceCpu),
+			"memory": resource.MustParse(defaultIstioIngressLimitResourceMemory),
 		},
 	}
 }
@@ -752,7 +860,7 @@ func (lP *CommonListenerSpec) GetListenerServiceName() string {
 // GetReplicas returns replicas used by the Istio Ingress deployment
 func (iIConfig *IstioIngressConfig) GetReplicas() int32 {
 	if iIConfig.Replicas == 0 {
-		return 1
+		return defaultReplicas
 	}
 	return iIConfig.Replicas
 }
@@ -773,7 +881,7 @@ func (k *KafkaClusterSpec) IsClientSSLSecretPresent() bool {
 // GetIngressController returns the default Envoy ingress controller if not specified otherwise
 func (kSpec *KafkaClusterSpec) GetIngressController() string {
 	if kSpec.IngressController == "" {
-		return "envoy"
+		return defaultKafkaClusterIngressController
 	}
 	return kSpec.IngressController
 }
@@ -781,7 +889,7 @@ func (kSpec *KafkaClusterSpec) GetIngressController() string {
 // GetKubernetesClusterDomain returns the default domain if not specified otherwise
 func (kSpec *KafkaClusterSpec) GetKubernetesClusterDomain() string {
 	if kSpec.KubernetesClusterDomain == "" {
-		return "cluster.local"
+		return defaultKafkaClusterK8sClusterDomain
 	}
 	return kSpec.KubernetesClusterDomain
 }
@@ -805,7 +913,7 @@ func (kSpec *KafkaClusterSpec) GetClusterImage() string {
 	if kSpec.ClusterImage != "" {
 		return kSpec.ClusterImage
 	}
-	return DefaultKafkaImage
+	return defaultKafkaImage
 }
 
 // GetClusterMetricsReporterImage returns the default container image for Kafka Cluster
@@ -818,7 +926,7 @@ func (kSpec *KafkaClusterSpec) GetClusterMetricsReporterImage() string {
 
 func (cTaskSpec *CruiseControlTaskSpec) GetDurationMinutes() float64 {
 	if cTaskSpec.RetryDurationMinutes == 0 {
-		return 5
+		return defaultCruiseControlTaskDurationMin
 	}
 	return float64(cTaskSpec.RetryDurationMinutes)
 }
@@ -844,7 +952,7 @@ func (eConfig *EnvoyConfig) GetDistruptionBudget() DisruptionBudgetWithStrategy 
 // GetReplicas returns replicas used by the Envoy deployment
 func (eConfig *EnvoyConfig) GetReplicas() int32 {
 	if eConfig.Replicas == 0 {
-		return 1
+		return defaultEnvoyReplicas
 	}
 	return eConfig.Replicas
 }
@@ -854,7 +962,7 @@ func (bConfig *BrokerConfig) GetServiceAccount() string {
 	if bConfig.ServiceAccountName != "" {
 		return bConfig.ServiceAccountName
 	}
-	return DefaultServiceAccountName
+	return defaultServiceAccountName
 }
 
 // GetServiceAccount returns the Kubernetes Service Account to use for EnvoyConfig
@@ -862,7 +970,7 @@ func (eConfig *EnvoyConfig) GetServiceAccount() string {
 	if eConfig.ServiceAccountName != "" {
 		return eConfig.ServiceAccountName
 	}
-	return DefaultServiceAccountName
+	return defaultServiceAccountName
 }
 
 // GetServiceAccount returns the Kubernetes Service Account to use for CruiseControl
@@ -870,7 +978,7 @@ func (cConfig *CruiseControlConfig) GetServiceAccount() string {
 	if cConfig.ServiceAccountName != "" {
 		return cConfig.ServiceAccountName
 	}
-	return DefaultServiceAccountName
+	return defaultServiceAccountName
 }
 
 // GetTolerations returns the tolerations for the given broker
@@ -891,7 +999,7 @@ func (cConfig *CruiseControlConfig) GetTolerations() []corev1.Toleration {
 // GetTerminationGracePeriod returns the termination grace period for the broker pod
 func (bConfig *BrokerConfig) GetTerminationGracePeriod() int64 {
 	if bConfig.TerminationGracePeriod == nil {
-		return DefaultBrokerTerminationGracePeriod
+		return defaultBrokerTerminationGracePeriod
 	}
 	return *bConfig.TerminationGracePeriod
 }
@@ -1006,13 +1114,13 @@ func (eConfig *EnvoyConfig) GetResources() *corev1.ResourceRequirements {
 		return eConfig.Resources
 	}
 	return &corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			"cpu":    resource.MustParse("100m"),
-			"memory": resource.MustParse("100Mi"),
-		},
 		Requests: corev1.ResourceList{
-			"cpu":    resource.MustParse("100m"),
-			"memory": resource.MustParse("100Mi"),
+			"cpu":    resource.MustParse(defaultEnvoyRequestResourceCpu),
+			"memory": resource.MustParse(defaultEnvoyRequestResourceMemory),
+		},
+		Limits: corev1.ResourceList{
+			"cpu":    resource.MustParse(defaultEnvoyLimitResourceCpu),
+			"memory": resource.MustParse(defaultEnvoyLimitResourceMemory),
 		},
 	}
 }
@@ -1023,7 +1131,7 @@ func (eConfig *EnvoyConfig) GetResources() *corev1.ResourceRequirements {
 // See https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
 func (eConfig *EnvoyConfig) GetConcurrency() int32 {
 	if eConfig.CommandLineArgs == nil {
-		return 0
+		return defaultEnvoyConcurrency
 	}
 	return eConfig.CommandLineArgs.Concurrency
 }
@@ -1034,13 +1142,13 @@ func (cConfig *CruiseControlConfig) GetResources() *corev1.ResourceRequirements 
 		return cConfig.Resources
 	}
 	return &corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			"cpu":    resource.MustParse("200m"),
-			"memory": resource.MustParse("768Mi"),
-		},
 		Requests: corev1.ResourceList{
-			"cpu":    resource.MustParse("200m"),
-			"memory": resource.MustParse("768Mi"),
+			"cpu":    resource.MustParse(defaultCruiseControlRequestResourceCpu),
+			"memory": resource.MustParse(defaultCruiseControlRequestResourceMemory),
+		},
+		Limits: corev1.ResourceList{
+			"cpu":    resource.MustParse(defaultCruiseControlLimitResourceCpu),
+			"memory": resource.MustParse(defaultCruiseControlLimitResourceMemory),
 		},
 	}
 }
@@ -1076,13 +1184,13 @@ func (bConfig *BrokerConfig) GetResources() *corev1.ResourceRequirements {
 		return bConfig.Resources
 	}
 	return &corev1.ResourceRequirements{
-		Limits: corev1.ResourceList{
-			"cpu":    resource.MustParse("1500m"),
-			"memory": resource.MustParse("3Gi"),
-		},
 		Requests: corev1.ResourceList{
-			"cpu":    resource.MustParse("1000m"),
-			"memory": resource.MustParse("2Gi"),
+			"cpu":    resource.MustParse(defaultBrokerRequestResourceCpu),
+			"memory": resource.MustParse(defaultBrokerRequestResourceMemory),
+		},
+		Limits: corev1.ResourceList{
+			"cpu":    resource.MustParse(defaultBrokerLimitResourceCpu),
+			"memory": resource.MustParse(defaultBrokerLimitResourceMemory),
 		},
 	}
 }
@@ -1093,16 +1201,16 @@ func (bConfig *BrokerConfig) GetKafkaHeapOpts() string {
 		return bConfig.KafkaHeapOpts
 	}
 
-	return "-Xmx2G -Xms2G"
+	return defaultBrokerHeapOpts
 }
 
-// GetKafkaPerfJmvOpts returns the broker specific Perf JVM settings
-func (bConfig *BrokerConfig) GetKafkaPerfJmvOpts() string {
+// GetKafkaPerfJvmOpts returns the broker specific Perf JVM settings
+func (bConfig *BrokerConfig) GetKafkaPerfJvmOpts() string {
 	if bConfig.KafkaJVMPerfOpts != "" {
 		return bConfig.KafkaJVMPerfOpts
 	}
 
-	return "-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+ExplicitGCInvokesConcurrent -Djava.awt.headless=true -Dsun.net.inetaddr.ttl=60"
+	return defaultBrokerPerfJvmOpts
 }
 
 // GetEnvoyImage returns the used envoy image
@@ -1111,7 +1219,7 @@ func (eConfig *EnvoyConfig) GetEnvoyImage() string {
 		return eConfig.Image
 	}
 
-	return "envoyproxy/envoy:v1.22.2"
+	return defaultEnvoyImage
 }
 
 // GetEnvoyAdminPort returns the envoy admin port
@@ -1119,7 +1227,7 @@ func (eConfig *EnvoyConfig) GetEnvoyAdminPort() int32 {
 	if eConfig.AdminPort != nil {
 		return *eConfig.AdminPort
 	}
-	return DefaultEnvoyAdminPort
+	return defaultEnvoyAdminPort
 }
 
 // GetEnvoyHealthCheckPort returns the envoy admin port
@@ -1127,7 +1235,7 @@ func (eConfig *EnvoyConfig) GetEnvoyHealthCheckPort() int32 {
 	if eConfig.HealthCheckPort != nil {
 		return *eConfig.HealthCheckPort
 	}
-	return DefaultEnvoyHealthCheckPort
+	return defaultEnvoyHealthCheckPort
 }
 
 // GetCCImage returns the used Cruise Control image
@@ -1135,7 +1243,7 @@ func (cConfig *CruiseControlConfig) GetCCImage() string {
 	if cConfig.Image != "" {
 		return cConfig.Image
 	}
-	return DefaultCruiseControlImage
+	return defaultCruiseControlImage
 }
 
 // GetCCLog4jConfig returns the used Cruise Control log4j configuration
@@ -1151,7 +1259,7 @@ func (mConfig *MonitoringConfig) GetImage() string {
 	if mConfig.JmxImage != "" {
 		return mConfig.JmxImage
 	}
-	return "ghcr.io/banzaicloud/jmx-javaagent:0.16.1"
+	return defaultMonitorImage
 }
 
 // GetPathToJar returns the path in the used Image for Prometheus JMX exporter
@@ -1159,7 +1267,7 @@ func (mConfig *MonitoringConfig) GetPathToJar() string {
 	if mConfig.PathToJar != "" {
 		return mConfig.PathToJar
 	}
-	return "/jmx_prometheus_javaagent.jar"
+	return defaultMonitorPathToJar
 }
 
 // GetKafkaJMXExporterConfig returns the config for Kafka Prometheus JMX exporter

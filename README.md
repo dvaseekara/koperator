@@ -48,7 +48,7 @@ While StatefulSets provide unique Broker IDs generated during Pod startup, netwo
 *Koperator takes a different approach by using simple `Pods`, `ConfigMaps`, and `PersistentVolumeClaims` instead of `StatefulSets`. These resources allow us to build an Operator that is better suited to manage Apache Kafka.*
 With Koperator, you can modify the configuration of unique Brokers, remove specific Brokers from clusters, and use multiple Persistent Volumes for each Broker.
 
-If you want to learn more about our design motivations and the scenarios that drove us to create Koperator, please continue reading on our documentation page [here](https://docs.calisti.app/sdm/koperator/scenarios/).
+If you want to learn more about our design motivations and the scenarios that drove us to create Koperator, please continue reading on our documentation page [here](https://banzaicloud.github.io/koperator-docs/docs/scenarios/).
 
 ![Koperator architecture](docs/img/kafka-operator-arch.png)
 
@@ -172,7 +172,7 @@ kubectl -n kafka run kafka-consumer -it --image=ghcr.io/banzaicloud/kafka:2.13-3
 
 ## Documentation
 
-For detailed documentation on the Koperator project, please visit the [Cisco Calisti documentation](https://docs.calisti.app/sdm/koperator/).
+For detailed documentation on the Koperator project, see the [Koperator documentation website](https://banzaicloud.github.io/koperator-docs/).
 
 ## Issues and contributions
 

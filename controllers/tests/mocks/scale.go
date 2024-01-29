@@ -26,7 +26,7 @@ import (
 	api "github.com/banzaicloud/go-cruise-control/pkg/api"
 	types "github.com/banzaicloud/go-cruise-control/pkg/types"
 	scale "github.com/banzaicloud/koperator/pkg/scale"
-	gomock "github.com/golang/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockCruiseControlScaler is a mock of CruiseControlScaler interface.
@@ -278,6 +278,21 @@ func (m *MockCruiseControlScaler) RemoveBrokersWithParams(ctx context.Context, p
 func (mr *MockCruiseControlScalerMockRecorder) RemoveBrokersWithParams(ctx, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveBrokersWithParams", reflect.TypeOf((*MockCruiseControlScaler)(nil).RemoveBrokersWithParams), ctx, params)
+}
+
+// RemoveDisksWithParams mocks base method.
+func (m *MockCruiseControlScaler) RemoveDisksWithParams(ctx context.Context, params map[string]string) (*scale.Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveDisksWithParams", ctx, params)
+	ret0, _ := ret[0].(*scale.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RemoveDisksWithParams indicates an expected call of RemoveDisksWithParams.
+func (mr *MockCruiseControlScalerMockRecorder) RemoveDisksWithParams(ctx, params interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveDisksWithParams", reflect.TypeOf((*MockCruiseControlScaler)(nil).RemoveDisksWithParams), ctx, params)
 }
 
 // Status mocks base method.

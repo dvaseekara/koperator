@@ -34,6 +34,7 @@ const (
 // KafkaUserSpec defines the desired state of KafkaUser
 // +k8s:openapi-gen=true
 type KafkaUserSpec struct {
+	// secretName is used as the name of the K8S secret that contains the certificate of the KafkaUser. SecretName should be unique inside the namespace where KafkaUser is located.
 	SecretName string           `json:"secretName"`
 	ClusterRef ClusterReference `json:"clusterRef"`
 	// Annotations defines the annotations placed on the certificate or certificate signing request object
@@ -116,7 +117,7 @@ func (spec *KafkaUserSpec) GetAnnotations() map[string]string {
 // ValidateAnnotations checks if certificate signing request annotations are valid
 func (spec *KafkaUserSpec) ValidateAnnotations() error {
 	// Validate annotations for cert-manager pki backend signer
-	if strings.Split(spec.PKIBackendSpec.SignerName, "/")[0] == CertManagerSignerNamePrefix {
+	if spec.PKIBackendSpec != nil && strings.Split(spec.PKIBackendSpec.SignerName, "/")[0] == CertManagerSignerNamePrefix {
 		certManagerCSRAnnotations := newCertManagerSignerAnnotationsWithValidators()
 		err := certManagerCSRAnnotations.validate(spec.GetAnnotations())
 		if err != nil {

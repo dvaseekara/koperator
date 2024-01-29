@@ -50,8 +50,6 @@ import (
 	"github.com/banzaicloud/koperator/pkg/util"
 	kafkautil "github.com/banzaicloud/koperator/pkg/util/kafka"
 	pkicommon "github.com/banzaicloud/koperator/pkg/util/pki"
-
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var userFinalizer = "finalizer.kafkausers.kafka.banzaicloud.io"
@@ -69,7 +67,7 @@ func SetupKafkaUserWithManager(mgr ctrl.Manager, certSigningEnabled bool, certMa
 			log:    log,
 		}
 		builder.Watches(
-			&source.Kind{Type: &certsigningreqv1.CertificateSigningRequest{}},
+			&certsigningreqv1.CertificateSigningRequest{},
 			handler.EnqueueRequestsFromMapFunc(csrMapper.mapToKafkaUser),
 			ctrlBuilder.WithPredicates(certificateSigningRequestFilter(log)))
 	}
@@ -105,7 +103,7 @@ type csrMapper struct {
 }
 
 // mapToKafkaUser maps CertificateSigningRequest events to KafkaUser reconcile events
-func (m *csrMapper) mapToKafkaUser(obj client.Object) []ctrl.Request {
+func (m *csrMapper) mapToKafkaUser(ctx context.Context, obj client.Object) []ctrl.Request {
 	certSigningReqAnnotations := obj.GetAnnotations()
 	kafkaUserResourceNamespacedName, ok := certSigningReqAnnotations[pkicommon.KafkaUserAnnotationName]
 	if !ok {
@@ -119,7 +117,6 @@ func (m *csrMapper) mapToKafkaUser(obj client.Object) []ctrl.Request {
 	namespace := namespaceWithName[0]
 	name := namespaceWithName[1]
 
-	ctx := context.Background()
 	var kafkaUser v1alpha1.KafkaUser
 	err := m.client.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, &kafkaUser)
 	if err != nil {

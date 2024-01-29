@@ -70,13 +70,13 @@ func expectEnvoyLoadBalancer(ctx context.Context, kafkaCluster *v1beta1.KafkaClu
 
 	Expect(loadBalancer.Spec.Ports[4].Name).To(Equal("tcp-health"))
 	Expect(loadBalancer.Spec.Ports[4].Protocol).To(Equal(corev1.ProtocolTCP))
-	Expect(loadBalancer.Spec.Ports[4].Port).To(BeEquivalentTo(v1beta1.DefaultEnvoyHealthCheckPort))
-	Expect(loadBalancer.Spec.Ports[4].TargetPort.IntVal).To(BeEquivalentTo(v1beta1.DefaultEnvoyHealthCheckPort))
+	Expect(loadBalancer.Spec.Ports[4].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+	Expect(loadBalancer.Spec.Ports[4].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
 
 	Expect(loadBalancer.Spec.Ports[5].Name).To(Equal("tcp-admin"))
 	Expect(loadBalancer.Spec.Ports[5].Protocol).To(Equal(corev1.ProtocolTCP))
-	Expect(loadBalancer.Spec.Ports[5].Port).To(BeEquivalentTo(v1beta1.DefaultEnvoyAdminPort))
-	Expect(loadBalancer.Spec.Ports[5].TargetPort.IntVal).To(BeEquivalentTo(v1beta1.DefaultEnvoyAdminPort))
+	Expect(loadBalancer.Spec.Ports[5].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+	Expect(loadBalancer.Spec.Ports[5].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
 }
 
 func expectEnvoyConfigMap(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListenerTemplate string) {
@@ -120,6 +120,11 @@ staticResources:
                 portValue: 9094
     name: broker-0
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   - circuitBreakers:
       thresholds:
       - maxConnections: 1000000000
@@ -143,6 +148,11 @@ staticResources:
                 portValue: 9094
     name: broker-1
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   - circuitBreakers:
       thresholds:
       - maxConnections: 1000000000
@@ -166,6 +176,11 @@ staticResources:
                 portValue: 9094
     name: broker-2
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   - circuitBreakers:
       thresholds:
       - maxConnections: 1000000000
@@ -203,6 +218,11 @@ staticResources:
               portValue: 9020
     name: all-brokers
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   listeners:
   - address:
       socketAddress:
@@ -214,8 +234,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: broker-0
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: broker_tcp-0
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -226,8 +260,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: broker-1
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: broker_tcp-1
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -238,8 +286,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: broker-2
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: broker_tcp-2
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -250,8 +312,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: all-brokers
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: all-brokers
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -273,8 +349,10 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
             typedConfig:
@@ -291,6 +369,19 @@ staticResources:
                 redirect:
                   pathRedirect: /healthcheck
           statPrefix: all-brokers-healthcheck
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
 `, fmt.Sprintf(svcTemplate, "0"), fmt.Sprintf(svcTemplate, "1"), fmt.Sprintf(svcTemplate, "2"), fmt.Sprintf(svcTemplate, "all-broker"))
 	Expect(configMap.Data["envoy.yaml"]).To(Equal(expected))
 }
@@ -395,13 +486,13 @@ func expectEnvoyWithConfigAz1(ctx context.Context, kafkaCluster *v1beta1.KafkaCl
 
 	Expect(loadBalancer.Spec.Ports[2].Name).To(Equal("tcp-health"))
 	Expect(loadBalancer.Spec.Ports[2].Protocol).To(Equal(corev1.ProtocolTCP))
-	Expect(loadBalancer.Spec.Ports[2].Port).To(BeEquivalentTo(v1beta1.DefaultEnvoyHealthCheckPort))
-	Expect(loadBalancer.Spec.Ports[2].TargetPort.IntVal).To(BeEquivalentTo(v1beta1.DefaultEnvoyHealthCheckPort))
+	Expect(loadBalancer.Spec.Ports[2].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+	Expect(loadBalancer.Spec.Ports[2].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
 
 	Expect(loadBalancer.Spec.Ports[3].Name).To(Equal("tcp-admin"))
 	Expect(loadBalancer.Spec.Ports[3].Protocol).To(Equal(corev1.ProtocolTCP))
-	Expect(loadBalancer.Spec.Ports[3].Port).To(BeEquivalentTo(v1beta1.DefaultEnvoyAdminPort))
-	Expect(loadBalancer.Spec.Ports[3].TargetPort.IntVal).To(BeEquivalentTo(v1beta1.DefaultEnvoyAdminPort))
+	Expect(loadBalancer.Spec.Ports[3].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+	Expect(loadBalancer.Spec.Ports[3].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
 
 	var deployment appsv1.Deployment
 	deploymentName := fmt.Sprintf("envoy-test-az1-%s", kafkaCluster.Name)
@@ -425,12 +516,12 @@ func expectEnvoyWithConfigAz1(ctx context.Context, kafkaCluster *v1beta1.KafkaCl
 		},
 		corev1.ContainerPort{
 			Name:          "tcp-admin",
-			ContainerPort: v1beta1.DefaultEnvoyAdminPort,
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort(),
 			Protocol:      corev1.ProtocolTCP,
 		},
 		corev1.ContainerPort{
 			Name:          "tcp-health",
-			ContainerPort: v1beta1.DefaultEnvoyHealthCheckPort,
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort(),
 			Protocol:      corev1.ProtocolTCP,
 		},
 	))
@@ -473,6 +564,11 @@ staticResources:
                 portValue: 9094
     name: broker-0
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   - circuitBreakers:
       thresholds:
       - maxConnections: 1000000000
@@ -510,6 +606,11 @@ staticResources:
               portValue: 9020
     name: all-brokers
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   listeners:
   - address:
       socketAddress:
@@ -521,8 +622,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: broker-0
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: broker_tcp-0
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -533,8 +648,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: all-brokers
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: all-brokers
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -556,8 +685,10 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
             typedConfig:
@@ -576,6 +707,286 @@ staticResources:
                 redirect:
                   pathRedirect: /healthcheck
           statPrefix: all-brokers-healthcheck
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
+`, fmt.Sprintf(svcTemplate, "0"), fmt.Sprintf(svcTemplate, "all-broker"))
+	Expect(configMap.Data["envoy.yaml"]).To(Equal(expected))
+}
+
+func expectEnvoyWithConfigAz1Tls(kafkaCluster *v1beta1.KafkaCluster) {
+	var loadBalancer corev1.Service
+	lbName := fmt.Sprintf("envoy-loadbalancer-test-az1-%s", kafkaCluster.Name)
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: lbName}, &loadBalancer)
+		return err
+	}).Should(Succeed())
+	Expect(loadBalancer.Spec.Ports).To(HaveLen(3))
+
+	Expect(loadBalancer.Spec.Ports[0].Name).To(Equal("tcp-all-broker"))
+	Expect(loadBalancer.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
+	Expect(loadBalancer.Spec.Ports[0].Port).To(BeEquivalentTo(29092))
+	Expect(loadBalancer.Spec.Ports[0].TargetPort.StrVal).To(BeEquivalentTo("tcp-all-broker"))
+
+	Expect(loadBalancer.Spec.Ports[1].Name).To(Equal("tcp-health"))
+	Expect(loadBalancer.Spec.Ports[1].Protocol).To(Equal(corev1.ProtocolTCP))
+	Expect(loadBalancer.Spec.Ports[1].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+	Expect(loadBalancer.Spec.Ports[1].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+
+	Expect(loadBalancer.Spec.Ports[2].Name).To(Equal("tcp-admin"))
+	Expect(loadBalancer.Spec.Ports[2].Protocol).To(Equal(corev1.ProtocolTCP))
+	Expect(loadBalancer.Spec.Ports[2].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+	Expect(loadBalancer.Spec.Ports[2].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+
+	var deployment appsv1.Deployment
+	deploymentName := fmt.Sprintf("envoy-test-az1-%s", kafkaCluster.Name)
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: deploymentName}, &deployment)
+		return err
+	}).Should(Succeed())
+	templateSpec := deployment.Spec.Template.Spec
+	Expect(templateSpec.Containers).To(HaveLen(1))
+	container := templateSpec.Containers[0]
+	Expect(container.Ports).To(ConsistOf(
+		corev1.ContainerPort{
+			Name:          "tcp-all-broker",
+			ContainerPort: 29092,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		corev1.ContainerPort{
+			Name:          "tcp-admin",
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort(),
+			Protocol:      corev1.ProtocolTCP,
+		},
+		corev1.ContainerPort{
+			Name:          "tcp-health",
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort(),
+			Protocol:      corev1.ProtocolTCP,
+		},
+	))
+
+	var configMap corev1.ConfigMap
+	configMapName := fmt.Sprintf("envoy-config-test-az1-%s", kafkaCluster.Name)
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: configMapName}, &configMap)
+		return err
+	}).Should(Succeed())
+	Expect(configMap.Data).To(HaveKey("envoy.yaml"))
+	svcTemplate := fmt.Sprintf("%s-%s.%s.svc.%s", kafkaCluster.Name, "%s", kafkaCluster.Namespace, kafkaCluster.Spec.GetKubernetesClusterDomain())
+	expected := fmt.Sprintf(`admin:
+  address:
+    socketAddress:
+      address: 0.0.0.0
+      portValue: 8081
+staticResources:
+  clusters:
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+        priority: HIGH
+    connectTimeout: 1s
+    loadAssignment:
+      clusterName: broker-0
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: %s
+                portValue: 9094
+    name: broker-0
+    type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+        priority: HIGH
+    connectTimeout: 1s
+    healthChecks:
+    - eventLogPath: /dev/stdout
+      healthyThreshold: 1
+      httpHealthCheck:
+        path: /-/healthy
+      interval: 5s
+      intervalJitter: 1s
+      noTrafficInterval: 5s
+      timeout: 1s
+      unhealthyInterval: 2s
+      unhealthyThreshold: 2
+    ignoreHealthOnHostRemoval: true
+    loadAssignment:
+      clusterName: all-brokers
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: %s
+                portValue: 9094
+            healthCheckConfig:
+              portValue: 9020
+    name: all-brokers
+    type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
+  listeners:
+  - address:
+      socketAddress:
+        address: 0.0.0.0
+        portValue: 29092
+    filterChains:
+    - filterChainMatch:
+        serverNames:
+        - broker-0
+        transportProtocol: tls
+      filters:
+      - name: envoy.filters.network.tcp_proxy
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          cluster: broker-0
+          idleTimeout: 560s
+          maxConnectAttempts: 2
+          statPrefix: broker_tcp-0
+      transportSocket:
+        name: envoy.transport_sockets.tls
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          commonTlsContext:
+            tlsCertificates:
+            - certificateChain:
+                filename: /certs/certificate.crt
+              privateKey:
+                filename: /certs/private.key
+            tlsParams:
+              tlsMaximumProtocolVersion: TLSv1_3
+              tlsMinimumProtocolVersion: TLSv1_2
+    - filterChainMatch:
+        serverNames:
+        - all-brokers-az1
+        transportProtocol: tls
+      filters:
+      - name: envoy.filters.network.tcp_proxy
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          cluster: all-brokers
+          idleTimeout: 560s
+          maxConnectAttempts: 2
+          statPrefix: all-brokers
+      transportSocket:
+        name: envoy.transport_sockets.tls
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          commonTlsContext:
+            tlsCertificates:
+            - certificateChain:
+                filename: /certs/certificate.crt
+              privateKey:
+                filename: /certs/private.key
+            tlsParams:
+              tlsMaximumProtocolVersion: TLSv1_3
+              tlsMinimumProtocolVersion: TLSv1_2
+    listenerFilters:
+    - name: tls_inspector
+      typedConfig:
+        '@type': type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
+  - address:
+      socketAddress:
+        address: 0.0.0.0
+        portValue: 8080
+    filterChains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          accessLog:
+          - name: envoy.access_loggers.stdout
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+          httpFilters:
+          - name: envoy.filters.http.health_check
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
+              clusterMinHealthyPercentages:
+                all-brokers:
+                  value: 1
+              headers:
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
+              passThroughMode: false
+          - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          routeConfig:
+            name: local
+            virtualHosts:
+            - domains:
+              - '*'
+              name: localhost
+              routes:
+              - match:
+                  prefix: /
+                redirect:
+                  pathRedirect: /healthcheck
+          statPrefix: all-brokers-healthcheck
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
 `, fmt.Sprintf(svcTemplate, "0"), fmt.Sprintf(svcTemplate, "all-broker"))
 	Expect(configMap.Data["envoy.yaml"]).To(Equal(expected))
 }
@@ -605,13 +1016,13 @@ func expectEnvoyWithConfigAz2(ctx context.Context, kafkaCluster *v1beta1.KafkaCl
 
 	Expect(loadBalancer.Spec.Ports[3].Name).To(Equal("tcp-health"))
 	Expect(loadBalancer.Spec.Ports[3].Protocol).To(Equal(corev1.ProtocolTCP))
-	Expect(loadBalancer.Spec.Ports[3].Port).To(BeEquivalentTo(v1beta1.DefaultEnvoyHealthCheckPort))
-	Expect(loadBalancer.Spec.Ports[3].TargetPort.IntVal).To(BeEquivalentTo(v1beta1.DefaultEnvoyHealthCheckPort))
+	Expect(loadBalancer.Spec.Ports[3].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+	Expect(loadBalancer.Spec.Ports[3].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
 
 	Expect(loadBalancer.Spec.Ports[4].Name).To(Equal("tcp-admin"))
 	Expect(loadBalancer.Spec.Ports[4].Protocol).To(Equal(corev1.ProtocolTCP))
-	Expect(loadBalancer.Spec.Ports[4].Port).To(BeEquivalentTo(v1beta1.DefaultEnvoyAdminPort))
-	Expect(loadBalancer.Spec.Ports[4].TargetPort.IntVal).To(BeEquivalentTo(v1beta1.DefaultEnvoyAdminPort))
+	Expect(loadBalancer.Spec.Ports[4].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+	Expect(loadBalancer.Spec.Ports[4].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
 
 	var deployment appsv1.Deployment
 	deploymentName := fmt.Sprintf("envoy-test-az2-%s", kafkaCluster.Name)
@@ -640,12 +1051,12 @@ func expectEnvoyWithConfigAz2(ctx context.Context, kafkaCluster *v1beta1.KafkaCl
 		},
 		corev1.ContainerPort{
 			Name:          "tcp-admin",
-			ContainerPort: v1beta1.DefaultEnvoyAdminPort,
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort(),
 			Protocol:      corev1.ProtocolTCP,
 		},
 		corev1.ContainerPort{
 			Name:          "tcp-health",
-			ContainerPort: v1beta1.DefaultEnvoyHealthCheckPort,
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort(),
 			Protocol:      corev1.ProtocolTCP,
 		},
 	))
@@ -688,6 +1099,11 @@ staticResources:
                 portValue: 9094
     name: broker-1
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   - circuitBreakers:
       thresholds:
       - maxConnections: 1000000000
@@ -711,6 +1127,11 @@ staticResources:
                 portValue: 9094
     name: broker-2
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   - circuitBreakers:
       thresholds:
       - maxConnections: 1000000000
@@ -748,6 +1169,11 @@ staticResources:
               portValue: 9020
     name: all-brokers
     type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
   listeners:
   - address:
       socketAddress:
@@ -759,8 +1185,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: broker-1
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: broker_tcp-1
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -771,8 +1211,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: broker-2
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: broker_tcp-2
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -783,8 +1237,22 @@ staticResources:
         typedConfig:
           '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
           cluster: all-brokers
+          idleTimeout: 560s
           maxConnectAttempts: 2
           statPrefix: all-brokers
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
   - address:
       socketAddress:
         address: 0.0.0.0
@@ -806,8 +1274,10 @@ staticResources:
                 all-brokers:
                   value: 1
               headers:
-              - exactMatch: /healthcheck
-                name: :path
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
               passThroughMode: false
           - name: envoy.filters.http.router
             typedConfig:
@@ -826,6 +1296,339 @@ staticResources:
                 redirect:
                   pathRedirect: /healthcheck
           statPrefix: all-brokers-healthcheck
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
+`, fmt.Sprintf(svcTemplate, "1"), fmt.Sprintf(svcTemplate, "2"), fmt.Sprintf(svcTemplate, "all-broker"))
+	Expect(configMap.Data["envoy.yaml"]).To(Equal(expected))
+}
+
+func expectEnvoyWithConfigAz2Tls(kafkaCluster *v1beta1.KafkaCluster) {
+	var loadBalancer corev1.Service
+	lbName := fmt.Sprintf("envoy-loadbalancer-test-az2-%s", kafkaCluster.Name)
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: lbName}, &loadBalancer)
+		return err
+	}).Should(Succeed())
+	Expect(loadBalancer.Spec.Ports).To(HaveLen(3))
+
+	Expect(loadBalancer.Spec.Ports[0].Name).To(Equal("tcp-all-broker"))
+	Expect(loadBalancer.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
+	Expect(loadBalancer.Spec.Ports[0].Port).To(BeEquivalentTo(29092))
+	Expect(loadBalancer.Spec.Ports[0].TargetPort.StrVal).To(BeEquivalentTo("tcp-all-broker"))
+
+	Expect(loadBalancer.Spec.Ports[1].Name).To(Equal("tcp-health"))
+	Expect(loadBalancer.Spec.Ports[1].Protocol).To(Equal(corev1.ProtocolTCP))
+	Expect(loadBalancer.Spec.Ports[1].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+	Expect(loadBalancer.Spec.Ports[1].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort()))
+
+	Expect(loadBalancer.Spec.Ports[2].Name).To(Equal("tcp-admin"))
+	Expect(loadBalancer.Spec.Ports[2].Protocol).To(Equal(corev1.ProtocolTCP))
+	Expect(loadBalancer.Spec.Ports[2].Port).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+	Expect(loadBalancer.Spec.Ports[2].TargetPort.IntVal).To(BeEquivalentTo(kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort()))
+
+	var deployment appsv1.Deployment
+	deploymentName := fmt.Sprintf("envoy-test-az2-%s", kafkaCluster.Name)
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: deploymentName}, &deployment)
+		return err
+	}).Should(Succeed())
+	templateSpec := deployment.Spec.Template.Spec
+	Expect(templateSpec.Containers).To(HaveLen(1))
+	container := templateSpec.Containers[0]
+	Expect(container.Ports).To(ConsistOf(
+		corev1.ContainerPort{
+			Name:          "tcp-all-broker",
+			ContainerPort: 29092,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		corev1.ContainerPort{
+			Name:          "tcp-admin",
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyAdminPort(),
+			Protocol:      corev1.ProtocolTCP,
+		},
+		corev1.ContainerPort{
+			Name:          "tcp-health",
+			ContainerPort: kafkaCluster.Spec.EnvoyConfig.GetEnvoyHealthCheckPort(),
+			Protocol:      corev1.ProtocolTCP,
+		},
+	))
+
+	var configMap corev1.ConfigMap
+	configMapName := fmt.Sprintf("envoy-config-test-az2-%s", kafkaCluster.Name)
+	Eventually(func() error {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: configMapName}, &configMap)
+		return err
+	}).Should(Succeed())
+	Expect(configMap.Data).To(HaveKey("envoy.yaml"))
+	svcTemplate := fmt.Sprintf("%s-%s.%s.svc.%s", kafkaCluster.Name, "%s", kafkaCluster.Namespace, kafkaCluster.Spec.GetKubernetesClusterDomain())
+	expected := fmt.Sprintf(`admin:
+  address:
+    socketAddress:
+      address: 0.0.0.0
+      portValue: 8081
+staticResources:
+  clusters:
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+        priority: HIGH
+    connectTimeout: 1s
+    loadAssignment:
+      clusterName: broker-1
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: %s
+                portValue: 9094
+    name: broker-1
+    type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+        priority: HIGH
+    connectTimeout: 1s
+    loadAssignment:
+      clusterName: broker-2
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: %s
+                portValue: 9094
+    name: broker-2
+    type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
+  - circuitBreakers:
+      thresholds:
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+      - maxConnections: 1000000000
+        maxPendingRequests: 1000000000
+        maxRequests: 1000000000
+        maxRetries: 1000000000
+        priority: HIGH
+    connectTimeout: 1s
+    healthChecks:
+    - eventLogPath: /dev/stdout
+      healthyThreshold: 1
+      httpHealthCheck:
+        path: /-/healthy
+      interval: 5s
+      intervalJitter: 1s
+      noTrafficInterval: 5s
+      timeout: 1s
+      unhealthyInterval: 2s
+      unhealthyThreshold: 2
+    ignoreHealthOnHostRemoval: true
+    loadAssignment:
+      clusterName: all-brokers
+      endpoints:
+      - lbEndpoints:
+        - endpoint:
+            address:
+              socketAddress:
+                address: %s
+                portValue: 9094
+            healthCheckConfig:
+              portValue: 9020
+    name: all-brokers
+    type: STRICT_DNS
+    upstreamConnectionOptions:
+      tcpKeepalive:
+        keepaliveInterval: 30
+        keepaliveProbes: 3
+        keepaliveTime: 30
+  listeners:
+  - address:
+      socketAddress:
+        address: 0.0.0.0
+        portValue: 29092
+    filterChains:
+    - filterChainMatch:
+        serverNames:
+        - broker-1
+        transportProtocol: tls
+      filters:
+      - name: envoy.filters.network.tcp_proxy
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          cluster: broker-1
+          idleTimeout: 560s
+          maxConnectAttempts: 2
+          statPrefix: broker_tcp-1
+      transportSocket:
+        name: envoy.transport_sockets.tls
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          commonTlsContext:
+            tlsCertificates:
+            - certificateChain:
+                filename: /certs/certificate.crt
+              privateKey:
+                filename: /certs/private.key
+            tlsParams:
+              tlsMaximumProtocolVersion: TLSv1_3
+              tlsMinimumProtocolVersion: TLSv1_2
+    - filterChainMatch:
+        serverNames:
+        - broker-2
+        transportProtocol: tls
+      filters:
+      - name: envoy.filters.network.tcp_proxy
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          cluster: broker-2
+          idleTimeout: 560s
+          maxConnectAttempts: 2
+          statPrefix: broker_tcp-2
+      transportSocket:
+        name: envoy.transport_sockets.tls
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          commonTlsContext:
+            tlsCertificates:
+            - certificateChain:
+                filename: /certs/certificate.crt
+              privateKey:
+                filename: /certs/private.key
+            tlsParams:
+              tlsMaximumProtocolVersion: TLSv1_3
+              tlsMinimumProtocolVersion: TLSv1_2
+    - filterChainMatch:
+        serverNames:
+        - all-brokers-az2
+        transportProtocol: tls
+      filters:
+      - name: envoy.filters.network.tcp_proxy
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          cluster: all-brokers
+          idleTimeout: 560s
+          maxConnectAttempts: 2
+          statPrefix: all-brokers
+      transportSocket:
+        name: envoy.transport_sockets.tls
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          commonTlsContext:
+            tlsCertificates:
+            - certificateChain:
+                filename: /certs/certificate.crt
+              privateKey:
+                filename: /certs/private.key
+            tlsParams:
+              tlsMaximumProtocolVersion: TLSv1_3
+              tlsMinimumProtocolVersion: TLSv1_2
+    listenerFilters:
+    - name: tls_inspector
+      typedConfig:
+        '@type': type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
+  - address:
+      socketAddress:
+        address: 0.0.0.0
+        portValue: 8080
+    filterChains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typedConfig:
+          '@type': type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          accessLog:
+          - name: envoy.access_loggers.stdout
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+          httpFilters:
+          - name: envoy.filters.http.health_check
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.health_check.v3.HealthCheck
+              clusterMinHealthyPercentages:
+                all-brokers:
+                  value: 1
+              headers:
+              - name: :path
+                stringMatch:
+                  exact: /healthcheck
+                  ignoreCase: true
+              passThroughMode: false
+          - name: envoy.filters.http.router
+            typedConfig:
+              '@type': type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          routeConfig:
+            name: local
+            virtualHosts:
+            - domains:
+              - '*'
+              name: localhost
+              routes:
+              - match:
+                  prefix: /
+                redirect:
+                  pathRedirect: /healthcheck
+          statPrefix: all-brokers-healthcheck
+    socketOptions:
+    - intValue: "1"
+      level: "1"
+      name: "9"
+    - intValue: "30"
+      level: "6"
+      name: "4"
+    - intValue: "30"
+      level: "6"
+      name: "5"
+    - intValue: "3"
+      level: "6"
+      name: "6"
 `, fmt.Sprintf(svcTemplate, "1"), fmt.Sprintf(svcTemplate, "2"), fmt.Sprintf(svcTemplate, "all-broker"))
 	Expect(configMap.Data["envoy.yaml"]).To(Equal(expected))
 }

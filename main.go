@@ -36,6 +36,9 @@ import (
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	istioclientv1beta1 "github.com/banzaicloud/istio-client-go/pkg/networking/v1beta1"
 
@@ -89,6 +92,7 @@ func main() {
 		certSigningDisabled               bool
 		certManagerEnabled                bool
 		maxKafkaTopicConcurrentReconciles int
+		healthProbesAddr                  string
 	)
 
 	flag.StringVar(&namespaces, "namespaces", "", "Comma separated list of namespaces where operator listens for resources")
@@ -103,12 +107,12 @@ func main() {
 	flag.BoolVar(&certManagerEnabled, "cert-manager-enabled", false, "Enable cert-manager integration")
 	flag.BoolVar(&certSigningDisabled, "disable-cert-signing-support", false, "Disable native certificate signing integration")
 	flag.IntVar(&maxKafkaTopicConcurrentReconciles, "max-kafka-topic-concurrent-reconciles", 10, "Define max amount of concurrent KafkaTopic reconciles")
+	flag.StringVar(&healthProbesAddr, "health-probes-addr", ":8081", "The address the probe endpoint binds to.")
 	flag.Parse()
 	ctrl.SetLogger(util.CreateLogger(verboseLogging, developmentLogging))
 
 	// adding indexers to KafkaTopics so that the KafkaTopic admission webhooks could work
 	ctx := context.Background()
-	var managerWatchCacheBuilder cache.NewCacheFunc
 
 	// When operator is started to watch resources in a specific set of namespaces, we use the MultiNamespacedCacheBuilder cache.
 	// In this scenario, it is also suggested to restrict the provided authorization to this namespace by replacing the default
@@ -116,26 +120,40 @@ func main() {
 	// For further information see the kubernetes documentation about
 	// Using [RBAC Authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/).
 	var namespaceList []string
+	watchedNamespaces := make(map[string]cache.Config)
 	if namespaces != "" {
 		namespaceList = strings.Split(namespaces, ",")
 		for i := range namespaceList {
-			namespaceList[i] = strings.TrimSpace(namespaceList[i])
+			watchedNamespaces[strings.TrimSpace(namespaceList[i])] = cache.Config{}
 		}
-		managerWatchCacheBuilder = cache.MultiNamespacedCacheBuilder(namespaceList)
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "controller-leader-election-helper",
-		NewCache:           managerWatchCacheBuilder,
-		Port:               webhookServerPort,
-		CertDir:            webhookCertDir,
+		Scheme:           scheme,
+		LeaderElection:   enableLeaderElection,
+		LeaderElectionID: "controller-leader-election-helper",
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port:    webhookServerPort,
+			CertDir: webhookCertDir,
+		}),
+		HealthProbeBindAddress: healthProbesAddr,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		Cache: cache.Options{DefaultNamespaces: watchedNamespaces},
 	})
-
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	if err = mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to start /healthz endpoint")
+		os.Exit(1)
+	}
+
+	if err = mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		setupLog.Error(err, "unable to start /readyz endpoint")
 		os.Exit(1)
 	}
 

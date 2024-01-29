@@ -21,9 +21,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/banzaicloud/koperator/controllers/tests/mocks"
@@ -77,7 +77,7 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 	})
 	When("there is an add_broker operation for execution", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock1())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock1())
 			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
 			err := k8sClient.Create(ctx, &operation)
 			Expect(err).NotTo(HaveOccurred())
@@ -105,7 +105,7 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 	})
 	When("add_broker operation is finished with completedWithError and 30s has not elapsed", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock2())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock2())
 			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
 			err := k8sClient.Create(ctx, &operation)
 			Expect(err).NotTo(HaveOccurred())
@@ -132,7 +132,7 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 	})
 	When("add_broker operation is finished with completedWithError and 30s has elapsed", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock5())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock5())
 			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
 			err := k8sClient.Create(ctx, &operation)
 			Expect(err).NotTo(HaveOccurred())
@@ -161,7 +161,7 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 	})
 	When("there is an errored remove_broker and an add_broker operation", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock3())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock3())
 			// First operation will get completedWithError
 			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
 			err := k8sClient.Create(ctx, &operation)
@@ -208,7 +208,7 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 	})
 	When("there is a new remove_broker and an errored remove_broker operation with pause annotation", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock4())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock4())
 			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
 			operation.Labels["pause"] = "true"
 			err := k8sClient.Create(ctx, &operation)
@@ -257,7 +257,7 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 	})
 	When("there is a new remove_broker and an errored remove_broker operation with ignore ErrorPolicy", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock4())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock4())
 			// Creating first operation
 			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
 			operation.Spec.ErrorPolicy = v1alpha1.ErrorPolicyIgnore
@@ -305,9 +305,63 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 			}, 10*time.Second, 500*time.Millisecond).Should(BeTrue())
 		})
 	})
+	When("there is an errored remove_disks and a rebalance disks operation for the same broker", Serial, func() {
+		JustBeforeEach(func() {
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock6())
+			// Remove_disk operation - errored
+			operation := generateCruiseControlOperation(opName1, namespace, kafkaCluster.GetName())
+			err := k8sClient.Create(context.Background(), &operation)
+			Expect(err).NotTo(HaveOccurred())
+
+			operation.Status.CurrentTask = &v1alpha1.CruiseControlTask{
+				Operation: v1alpha1.OperationRemoveDisks,
+				Finished:  &metav1.Time{Time: time.Now().Add(-time.Second*v1alpha1.DefaultRetryBackOffDurationSec - 10)},
+				Parameters: map[string]string{
+					scale.ParamBrokerIDAndLogDirs: "101-logdir1",
+				},
+			}
+			err = k8sClient.Status().Update(context.Background(), &operation)
+			Expect(err).NotTo(HaveOccurred())
+			// Rebalance operation
+			operation = generateCruiseControlOperation(opName2, namespace, kafkaCluster.GetName())
+			err = k8sClient.Create(context.Background(), &operation)
+			Expect(err).NotTo(HaveOccurred())
+			operation.Status.CurrentTask = &v1alpha1.CruiseControlTask{
+				Operation: v1alpha1.OperationRebalance,
+				Parameters: map[string]string{
+					scale.ParamDestbrokerIDs: "101,102",
+				},
+			}
+			err = k8sClient.Status().Update(context.Background(), &operation)
+			Expect(err).NotTo(HaveOccurred())
+		})
+		It("should mark the removed disk task as paused and should execute the rebalance", func() {
+			Eventually(func() bool {
+				removeDisksOp := v1alpha1.CruiseControlOperation{}
+				err := k8sClient.Get(context.Background(), client.ObjectKey{
+					Namespace: kafkaCluster.Namespace,
+					Name:      opName1,
+				}, &removeDisksOp)
+				if err != nil {
+					return false
+				}
+				rebalanceOp := v1alpha1.CruiseControlOperation{}
+				err = k8sClient.Get(context.Background(), client.ObjectKey{
+					Namespace: kafkaCluster.Namespace,
+					Name:      opName2,
+				}, &rebalanceOp)
+				if err != nil {
+					return false
+				}
+
+				return rebalanceOp.CurrentTaskState() == v1beta1.CruiseControlTaskCompleted &&
+					removeDisksOp.GetLabels()[v1alpha1.PauseLabel] == v1alpha1.True
+			}, 10*time.Second, 500*time.Millisecond).Should(BeTrue())
+		})
+	})
 	When("Cruise Control makes the Status operation async", Serial, func() {
 		JustBeforeEach(func(ctx SpecContext) {
-			cruiseControlOperationReconciler.ScaleFactory = NewMockScaleFactory(getScaleMock7())
+			cruiseControlOperationReconciler.ScaleFactory = mocks.NewMockScaleFactory(getScaleMock7())
 			operation := generateCruiseControlOperation("add-broker-operation", namespace, kafkaCluster.GetName())
 			err := k8sClient.Create(ctx, &operation)
 			Expect(err).NotTo(HaveOccurred())
@@ -486,6 +540,38 @@ func getScaleMock5() *mocks.MockCruiseControlScaler {
 		StartedAt: "Sat, 27 Aug 2022 12:22:21 GMT",
 		State:     v1beta1.CruiseControlTaskActive,
 	}), nil).Times(1)
+	return scaleMock
+}
+
+func getScaleMock6() *mocks.MockCruiseControlScaler {
+	mockCtrl := gomock.NewController(GinkgoT())
+	scaleMock := mocks.NewMockCruiseControlScaler(mockCtrl)
+	scaleMock.EXPECT().IsUp(gomock.Any()).Return(true).AnyTimes()
+
+	userTaskResult := []*scale.Result{scaleResultPointer(scale.Result{
+		TaskID:    "12345",
+		StartedAt: "Sat, 27 Aug 2022 12:22:21 GMT",
+		State:     v1beta1.CruiseControlTaskCompletedWithError,
+	})}
+	scaleMock.EXPECT().UserTasks(gomock.Any(), gomock.Any()).Return(userTaskResult, nil).AnyTimes()
+	scaleMock.EXPECT().Status(gomock.Any()).Return(scale.StatusTaskResult{
+		Status: &scale.CruiseControlStatus{
+			ExecutorReady: true,
+			MonitorReady:  true,
+			AnalyzerReady: true,
+		}}, nil).AnyTimes()
+	scaleMock.EXPECT().RebalanceWithParams(gomock.Any(), gomock.All()).Return(scaleResultPointer(scale.Result{
+		TaskID:    "12346",
+		StartedAt: "Sat, 27 Aug 2022 12:22:21 GMT",
+		State:     v1beta1.CruiseControlTaskCompleted,
+	}), nil).Times(1)
+
+	scaleMock.EXPECT().RemoveDisksWithParams(gomock.Any(), gomock.All()).Return(scaleResultPointer(scale.Result{
+		TaskID:    "12345",
+		StartedAt: "Sat, 27 Aug 2022 12:22:21 GMT",
+		State:     v1beta1.CruiseControlTaskCompletedWithError,
+	}), nil).AnyTimes()
+
 	return scaleMock
 }
 

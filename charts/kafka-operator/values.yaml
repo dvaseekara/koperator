@@ -5,8 +5,8 @@
 replicaCount: 1
 
 # Lists the secrets you need to use to pull kafka-operator image from a private registry.
-imagePullSecrets: []
-  # - private-registry-key
+# imagePullSecrets:
+#   - name: secret-with-private-registry-key
 
 operator:
   annotations: {}
@@ -20,9 +20,9 @@ operator:
   # configurable Kubernetes namespaces.
   # In this scenario, users can replace the default
   # ClusterRole and ClusterRoleBinding to Role and RoleBinding respectively.
-  # When this field is not empty and Cert-manager is used, 
+  # When this field is not empty and Cert-manager is used,
   # the Cert-manager's Custom Resource Namespace must be included in the comma separated list.
-  # When it is empty, all namespaces will be watched. 
+  # When it is empty, all namespaces will be watched.
   namespaces: ""
   verboseLogging: false
   developmentLogging: false
@@ -67,11 +67,14 @@ prometheusMetrics:
     enabled: true
     image:
       repository: gcr.io/kubebuilder/kube-rbac-proxy
-      tag: v0.13.0
+      tag: v0.15.0
       pullPolicy: IfNotPresent
     serviceAccount:
       create: true
       name: kafka-operator-authproxy
+
+healthProbes: {}
+  # port:
 
 #metricEndpoint:
 #  port:
@@ -81,9 +84,6 @@ fullnameOverride: ""
 
 rbac:
   enabled: true
-
-crd:
-  enabled: false
 
 nodeSelector: {}
 

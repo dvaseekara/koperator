@@ -614,7 +614,6 @@ zookeeper.connect=example.zk:2181/`,
 
 		t.Run(test.testName, func(t *testing.T) {
 			mockClient := mocks.NewMockClient(mockCtrl)
-			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 			r := Reconciler{
 				Reconciler: resources.Reconciler{
 					Client: mockClient,
@@ -639,9 +638,9 @@ zookeeper.connect=example.zk:2181/`,
 											ServerSSLCertSecret: &v1.LocalObjectReference{
 												Name: "server-secret",
 											},
-											SSLClientAuth: test.sslClientAuth,
+											SSLClientAuth:                   test.sslClientAuth,
+											UsedForInnerBrokerCommunication: true,
 										},
-										UsedForInnerBrokerCommunication: true,
 									},
 								},
 							},

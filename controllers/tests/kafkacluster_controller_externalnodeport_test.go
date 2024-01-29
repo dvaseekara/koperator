@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/banzaicloud/koperator/api/v1beta1"
 )
@@ -91,6 +92,8 @@ var _ = Describe("KafkaClusterNodeportExternalAccess", func() {
 		By("deleting Kafka cluster object " + kafkaCluster.Name + " in namespace " + namespace)
 		err := k8sClient.Delete(ctx, kafkaCluster)
 		Expect(err).NotTo(HaveOccurred())
+		// deletes all nodeports in the test namespace, to ensure a clean sheet, as garbage collection does not work in envtest
+		Expect(deleteNodePorts(ctx, kafkaCluster)).Should(Succeed())
 		kafkaCluster = nil
 	})
 
@@ -236,7 +239,7 @@ var _ = Describe("KafkaClusterNodeportExternalAccess", func() {
 						ContainerPort: 9733,
 						Type:          "plaintext",
 					},
-					ExternalStartingPort: 30300,
+					ExternalStartingPort: 30410,
 					IngressServiceSettings: v1beta1.IngressServiceSettings{
 						HostnameOverride: ".external.nodeport.com",
 					},
@@ -277,15 +280,15 @@ var _ = Describe("KafkaClusterNodeportExternalAccess", func() {
 					"test": {
 						{
 							Name:    "broker-0",
-							Address: fmt.Sprintf("%s-0-test.kafka-nodeport-%d.external.nodeport.com:30300", kafkaCluster.Name, count),
+							Address: fmt.Sprintf("%s-0-test.kafka-nodeport-%d.external.nodeport.com:30410", kafkaCluster.Name, count),
 						},
 						{
 							Name:    "broker-1",
-							Address: fmt.Sprintf("%s-1-test.kafka-nodeport-%d.external.nodeport.com:30301", kafkaCluster.Name, count),
+							Address: fmt.Sprintf("%s-1-test.kafka-nodeport-%d.external.nodeport.com:30411", kafkaCluster.Name, count),
 						},
 						{
 							Name:    "broker-2",
-							Address: fmt.Sprintf("%s-2-test.kafka-nodeport-%d.external.nodeport.com:30302", kafkaCluster.Name, count),
+							Address: fmt.Sprintf("%s-2-test.kafka-nodeport-%d.external.nodeport.com:30412", kafkaCluster.Name, count),
 						},
 					},
 				},
@@ -370,3 +373,20 @@ var _ = Describe("KafkaClusterNodeportExternalAccess", func() {
 		})
 	})
 })
+
+func deleteNodePorts(ctx SpecContext, kafkaCluster *v1beta1.KafkaCluster) error {
+	var serviceList corev1.ServiceList
+	err := k8sClient.List(ctx, &serviceList, client.ListOption(client.InNamespace(kafkaCluster.Namespace)))
+	if err != nil {
+		return err
+	}
+	for _, service := range serviceList.Items {
+		if service.Spec.Type == corev1.ServiceTypeNodePort {
+			err = k8sClient.Delete(ctx, &service)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

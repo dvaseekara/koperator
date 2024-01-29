@@ -33,7 +33,7 @@ To upgrade the chart since the helm 3 limitation you have to set a value as well
 If this value is not set your CRDs might be deleted.
 
 ```bash
-helm upgrade kafka-operator --set crd.enabled=true --namespace=kafka banzaicloud-stable/kafka-operator
+helm upgrade kafka-operator --set --namespace=kafka banzaicloud-stable/kafka-operator
 ```
 
 ## Uninstalling the Chart
@@ -65,7 +65,7 @@ Parameter | Description | Default
 `prometheusMetrics.authProxy.serviceAccount.create` | If true, create the service account (see `prometheusMetrics.authProxy.serviceAccount.name`) used by prometheus auth proxy | `true`
 `prometheusMetrics.authProxy.serviceAccount.name` | ServiceAccount used by prometheus auth proxy | `kafka-operator-authproxy`
 `prometheusMetrics.authProxy.image.repository` | Auth proxy container image repository | `gcr.io/kubebuilder/kube-rbac-proxy`
-`prometheusMetrics.authProxy.image.tag` | Auth proxy container image tag | `v0.13.0`
+`prometheusMetrics.authProxy.image.tag` | Auth proxy container image tag | `v0.15.0`
 `prometheusMetrics.authProxy.image.pullPolicy` | Auth proxy container image pull policy | `IfNotPresent`
 `rbac.enabled` | Create rbac service account and roles | `true`
 `imagePullSecrets` | Image pull secrets can be set | `[]`
@@ -76,7 +76,6 @@ Parameter | Description | Default
 `tolerations` | Operator pod tolerations can be set | `[]`
 `affinity` | Operator pod affinity can be set | `{}`
 `nameOverride` | Release name can be overwritten | `""`
-`crd.enabled` | Whether to enable CRD installation(used for upgrade only) | `false`
 `fullnameOverride` | Release full name can be overwritten | `""`
 `certManager.namespace` | Operator will look for the cert manager in this namespace | `cert-manager`
 `certManager.enabled` | Operator will integrate with the cert manager | `false`

@@ -8,6 +8,7 @@ on:
       - "chart/**/[0-9]+.[0-9]+.[0-9]+"
       - "chart/**/[0-9]+.[0-9]+.[0-9]+-dev.[0-9]+"
       - "chart/**/[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
+      - "chart/**/[0-9]+.[0-9]+.[0-9]+-adobe-[0-9]+"
   pull_request:
 
 env:
@@ -24,9 +25,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - uses: azure/setup-helm@v1
+      - uses: azure/setup-helm@v3
         with:
           version: ${{ env.HELM_VERSION }}
 
@@ -65,13 +66,7 @@ jobs:
       - name: Set Helm push enabled
         id: set-helm-push-enabled
         run: |
-          HELM_PUSH_ENABLED=""
-          if [ "${{ github.event_name }}" == "push" ] && echo "${{ steps.set-git-refname.outputs.git_refname }}" | grep -E -q "^chart/${{ env.HELM_CHART_NAME }}/[0-9]+.[0-9]+.[0-9]+**"; then
-            HELM_PUSH_ENABLED=1
-          else
-            printf >&2 "Unstable chart (%s) from %s event, chart will not be pushed" "${{ steps.set-git-refname.outputs.git_refname }}" "${{ github.event_name }}"
-          fi
-
+          HELM_PUSH_ENABLED="0"
           echo "HELM_PUSH_ENABLED=${HELM_PUSH_ENABLED}"
           echo "helm_push_enabled=${HELM_PUSH_ENABLED}" >> $GITHUB_OUTPUT
 

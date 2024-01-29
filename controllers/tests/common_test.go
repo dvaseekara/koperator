@@ -59,20 +59,20 @@ func createMinimalKafkaClusterCR(name, namespace string) *v1beta1.KafkaCluster {
 				InternalListeners: []v1beta1.InternalListenerConfig{
 					{
 						CommonListenerSpec: v1beta1.CommonListenerSpec{
-							Type:          "plaintext",
-							Name:          "internal",
-							ContainerPort: 29092,
+							Type:                            "plaintext",
+							Name:                            "internal",
+							ContainerPort:                   29092,
+							UsedForInnerBrokerCommunication: true,
 						},
-						UsedForInnerBrokerCommunication: true,
 					},
 					{
 						CommonListenerSpec: v1beta1.CommonListenerSpec{
-							Type:          "plaintext",
-							Name:          "controller",
-							ContainerPort: 29093,
+							Type:                            "plaintext",
+							Name:                            "controller",
+							ContainerPort:                   29093,
+							UsedForInnerBrokerCommunication: false,
 						},
-						UsedForInnerBrokerCommunication: false,
-						UsedForControllerCommunication:  true,
+						UsedForControllerCommunication: true,
 					},
 				},
 			},
@@ -125,7 +125,7 @@ func createMinimalKafkaClusterCR(name, namespace string) *v1beta1.KafkaCluster {
 				CCJMXExporterConfig: "custom_property: custom_value",
 			},
 			ReadOnlyConfig:       "cruise.control.metrics.topic.auto.create=true",
-			RollingUpgradeConfig: v1beta1.RollingUpgradeConfig{FailureThreshold: 1},
+			RollingUpgradeConfig: v1beta1.RollingUpgradeConfig{FailureThreshold: 1, ConcurrentBrokerRestartsAllowed: 1},
 		},
 	}
 }
@@ -161,7 +161,7 @@ func waitForClusterRunningState(ctx context.Context, kafkaCluster *v1beta1.Kafka
 		}
 	}()
 
-	Eventually(ch, 120*time.Second, 50*time.Millisecond).Should(Receive())
+	Eventually(ch, 240*time.Second, 50*time.Millisecond).Should(Receive())
 }
 
 func getMockedKafkaClientForCluster(kafkaCluster *v1beta1.KafkaCluster) (kafkaclient.KafkaClient, func()) {

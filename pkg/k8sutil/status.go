@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	"github.com/banzaicloud/koperator/api/v1beta1"
 	banzaicloudv1beta1 "github.com/banzaicloud/koperator/api/v1beta1"
 	"github.com/banzaicloud/koperator/pkg/util"
 	clientutil "github.com/banzaicloud/koperator/pkg/util/client"
@@ -178,8 +179,8 @@ func generateBrokerState(brokerIDs []string, cluster *banzaicloudv1beta1.KafkaCl
 	cluster.Status.BrokersState = brokersState
 }
 
-// DeleteStatus deletes the given broker state from the CR
-func DeleteStatus(c client.Client, brokerID string, cluster *banzaicloudv1beta1.KafkaCluster, logger logr.Logger) error {
+// DeleteBrokerStatus deletes the given broker state from the CR
+func DeleteBrokerStatus(c client.Client, brokerID string, cluster *banzaicloudv1beta1.KafkaCluster, logger logr.Logger) error {
 	typeMeta := cluster.TypeMeta
 
 	brokerStatus := cluster.Status.BrokersState
@@ -220,6 +221,55 @@ func DeleteStatus(c client.Client, brokerID string, cluster *banzaicloudv1beta1.
 	// update loses the typeMeta of the config that's used later when setting ownerrefs
 	cluster.TypeMeta = typeMeta
 	logger.Info(fmt.Sprintf("Kafka broker %s state deleted", brokerID))
+	return nil
+}
+
+// DeleteVolumeStatus deletes the given volume state for the given broker from the CR
+func DeleteVolumeStatus(c client.Client, brokerID string, mountPath string, cluster *banzaicloudv1beta1.KafkaCluster, logger logr.Logger) error {
+	typeMeta := cluster.TypeMeta
+
+	brokerStatus := cluster.Status.BrokersState
+
+	if status, ok := brokerStatus[brokerID]; ok {
+		delete(status.GracefulActionState.VolumeStates, mountPath)
+	}
+
+	cluster.Status.BrokersState = brokerStatus
+
+	err := c.Status().Update(context.Background(), cluster)
+	if apierrors.IsNotFound(err) {
+		err = c.Update(context.Background(), cluster)
+	}
+	if err != nil {
+		if !apierrors.IsConflict(err) {
+			return errors.WrapIff(err, "could not delete Kafka cluster broker %s volume %s state ", brokerID, mountPath)
+		}
+		err := c.Get(context.TODO(), types.NamespacedName{
+			Namespace: cluster.Namespace,
+			Name:      cluster.Name,
+		}, cluster)
+		if err != nil {
+			return errors.WrapIf(err, "could not get config for updating status")
+		}
+		brokerStatus = cluster.Status.BrokersState
+
+		if status, ok := brokerStatus[brokerID]; ok {
+			delete(status.GracefulActionState.VolumeStates, mountPath)
+		}
+
+		cluster.Status.BrokersState = brokerStatus
+		err = c.Status().Update(context.Background(), cluster)
+		if apierrors.IsNotFound(err) {
+			err = c.Update(context.Background(), cluster)
+		}
+		if err != nil {
+			return errors.WrapIff(err, "could not delete Kafka clusters broker %s volume %s state ", brokerID, mountPath)
+		}
+	}
+
+	// update loses the typeMeta of the config that's used later when setting ownerrefs
+	cluster.TypeMeta = typeMeta
+	logger.Info(fmt.Sprintf("Kafka broker %s volume %s state deleted", brokerID, mountPath))
 	return nil
 }
 
@@ -354,7 +404,7 @@ func UpdateListenerStatuses(ctx context.Context, c client.Client, cluster *banza
 	return nil
 }
 
-func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluster) (map[string]banzaicloudv1beta1.ListenerStatusList, map[string]banzaicloudv1beta1.ListenerStatusList) {
+func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluster, externalListenerStatus map[string]banzaicloudv1beta1.ListenerStatusList) (map[string]banzaicloudv1beta1.ListenerStatusList, map[string]banzaicloudv1beta1.ListenerStatusList) {
 	intListenerStatuses := make(map[string]banzaicloudv1beta1.ListenerStatusList, len(kafkaCluster.Spec.ListenersConfig.InternalListeners))
 	controllerIntListenerStatuses := make(map[string]banzaicloudv1beta1.ListenerStatusList)
 
@@ -374,13 +424,22 @@ func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluste
 
 		// add addresses per broker
 		for _, broker := range kafkaCluster.Spec.Brokers {
-			var address string
-			if kafkaCluster.Spec.HeadlessServiceEnabled {
-				address = fmt.Sprintf("%s-%d.%s-headless.%s.svc.%s:%d", kafkaCluster.Name, broker.Id, kafkaCluster.Name,
-					kafkaCluster.Namespace, kafkaCluster.Spec.GetKubernetesClusterDomain(), iListener.ContainerPort)
-			} else {
-				address = fmt.Sprintf("%s-%d.%s.svc.%s:%d", kafkaCluster.Name, broker.Id, kafkaCluster.Namespace,
-					kafkaCluster.Spec.GetKubernetesClusterDomain(), iListener.ContainerPort)
+			var address = ""
+			if iListener.ExternalListenerForHostname != "" && iListener.InternalStartingPort > 0 {
+				if eListenerStatus, ok := externalListenerStatus[iListener.ExternalListenerForHostname]; ok {
+					address = fmt.Sprintf("%s:%d", getHostnameForBrokerId(eListenerStatus, broker.Id),
+						iListener.InternalStartingPort+broker.Id)
+				}
+			}
+
+			if address == "" {
+				if kafkaCluster.Spec.HeadlessServiceEnabled {
+					address = fmt.Sprintf("%s-%d.%s-headless.%s.svc.%s:%d", kafkaCluster.Name, broker.Id, kafkaCluster.Name,
+						kafkaCluster.Namespace, kafkaCluster.Spec.GetKubernetesClusterDomain(), iListener.ContainerPort)
+				} else {
+					address = fmt.Sprintf("%s-%d.%s.svc.%s:%d", kafkaCluster.Name, broker.Id, kafkaCluster.Namespace,
+						kafkaCluster.Spec.GetKubernetesClusterDomain(), iListener.ContainerPort)
+				}
 			}
 			listenerStatusList = append(listenerStatusList, banzaicloudv1beta1.ListenerStatus{
 				Name:    fmt.Sprintf("broker-%d", broker.Id),
@@ -396,4 +455,13 @@ func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluste
 	}
 
 	return intListenerStatuses, controllerIntListenerStatuses
+}
+
+func getHostnameForBrokerId(eListenerStatusList v1beta1.ListenerStatusList, brokerId int32) string {
+	for _, eListenerStatus := range eListenerStatusList {
+		if eListenerStatus.Name == fmt.Sprintf("broker-%d", brokerId) {
+			return strings.Split(eListenerStatus.Address, ":")[0]
+		}
+	}
+	return ""
 }

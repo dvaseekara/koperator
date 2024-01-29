@@ -16,6 +16,8 @@ package e2e
 
 import (
 	"errors"
+	"os"
+	"strings"
 )
 
 // HelmDescriptors.
@@ -35,31 +37,48 @@ var (
 
 	// koperatorLocalHelmDescriptor describes the Koperator Helm component with
 	// a local chart and version.
-	koperatorLocalHelmDescriptor = helmDescriptor{
-		Repository:   "../../charts/kafka-operator",
-		ChartVersion: LocalVersion,
-		ReleaseName:  "kafka-operator",
-		Namespace:    "kafka",
-		SetValues: map[string]string{
-			"crd.enabled": "true",
-		},
-		LocalCRDSubpaths: []string{"templates/crds.yaml"},
-		LocalCRDTemplateRenderValues: map[string]string{
-			"crd.enabled": "true",
-		},
-	}
+	koperatorLocalHelmDescriptor = func() helmDescriptor {
+		koperatorLocalHelmDescriptor := helmDescriptor{
+			Repository:   "../../charts/kafka-operator",
+			ChartVersion: LocalVersion,
+			ReleaseName:  "kafka-operator",
+			Namespace:    "kafka",
+			LocalCRDSubpaths: []string{
+				"crds/cruisecontroloperations.yaml",
+				"crds/kafkaclusters.yaml",
+				"crds/kafkatopics.yaml",
+				"crds/kafkausers.yaml",
+			},
+		}
+		// Set helm chart values for Koperator to be able to use custom image
+		koperatorImagePath := os.Getenv("IMG_E2E")
+		if koperatorImagePath != "" {
+			koperatorImagePathSplit := strings.Split(koperatorImagePath, ":")
+
+			koperatorImageRepository := koperatorImagePathSplit[0]
+			koperatorImageTag := "latest"
+
+			if len(koperatorImagePathSplit) == 2 {
+				koperatorImageTag = koperatorImagePathSplit[1]
+			}
+
+			koperatorLocalHelmDescriptor.SetValues = map[string]string{
+				"operator.image.repository": koperatorImageRepository,
+				"operator.image.tag":        koperatorImageTag,
+			}
+		}
+
+		return koperatorLocalHelmDescriptor
+	}()
 
 	// koperatorLocalHelmDescriptor describes the Koperator Helm component with
 	// a remote latest chart and version.
 	koperatorRemoteLatestHelmDescriptor = helmDescriptor{ //nolint:unused // Note: intentional possibly needed in the future for upgrade test.
-		Repository:   "https://kubernetes-charts.banzaicloud.com",
-		ChartName:    "kafka-operator",
-		ChartVersion: "", // Note: empty string translates to latest final version.
-		ReleaseName:  "kafka-operator",
-		Namespace:    "kafka",
-		SetValues: map[string]string{
-			"crd.enabled": "true",
-		},
+		Repository:                   "https://kubernetes-charts.banzaicloud.com",
+		ChartName:                    "kafka-operator",
+		ChartVersion:                 "", // Note: empty string translates to latest final version.
+		ReleaseName:                  "kafka-operator",
+		Namespace:                    "kafka",
 		RemoteCRDPathVersionTemplate: "https://github.com/banzaicloud/koperator/releases/download/%s/kafka-operator.crds.yaml",
 	}
 
@@ -68,7 +87,7 @@ var (
 	prometheusOperatorHelmDescriptor = helmDescriptor{
 		Repository:   "https://prometheus-community.github.io/helm-charts",
 		ChartName:    "kube-prometheus-stack",
-		ChartVersion: "42.0.1",
+		ChartVersion: "54.1.0",
 		ReleaseName:  "prometheus-operator",
 		Namespace:    "prometheus",
 		SetValues: map[string]string{
@@ -94,7 +113,7 @@ var (
 	zookeeperOperatorHelmDescriptor = helmDescriptor{
 		Repository:   "https://charts.pravega.io",
 		ChartName:    "zookeeper-operator",
-		ChartVersion: "0.2.14",
+		ChartVersion: "0.2.15",
 		ReleaseName:  "zookeeper-operator",
 		Namespace:    "zookeeper",
 		SetValues: map[string]string{

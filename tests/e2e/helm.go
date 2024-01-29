@@ -65,7 +65,12 @@ func (helmDescriptor *helmDescriptor) crdPath() (string, error) { //nolint:unuse
 		},
 		helmDescriptor.Repository,
 		helmDescriptor.ReleaseName,
-		[]string{"templates/crds.yaml"},
+		[]string{
+			"crds/cruisecontroloperations.yaml",
+			"crds/kafkaclusters.yaml",
+			"crds/kafkatopics.yaml",
+			"crds/kafkausers.yaml",
+		},
 	))
 
 	return createTempFileFromBytes(localCRDsBytes, "", "", 0)
@@ -198,7 +203,7 @@ func (helmDescriptor *helmDescriptor) installHelmChart(kubectlOptions k8s.Kubect
 // if the Helm chart present then it uninstalls it from the specified kubectl context
 // and namespace using the specified info, extra arguments can be any of the helm
 // CLI install flag arguments, flag keys and values must be provided separately.
-func (helmDescriptor *helmDescriptor) uninstallHelmChart(kubectlOptions k8s.KubectlOptions, noErrorNotFound bool) error {
+func (helmDescriptor *helmDescriptor) uninstallHelmChart(kubectlOptions k8s.KubectlOptions, noErrorNotFound bool) error { //nolint:unparam // Note: library function with noErrorNotFound argument currently always receiving true.
 	if helmDescriptor == nil {
 		return errors.Errorf("invalid nil Helm descriptor")
 	}

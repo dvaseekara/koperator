@@ -284,13 +284,14 @@ func (r *Reconciler) configMap(broker v1beta1.Broker, brokerConfig *v1beta1.Brok
 
 func generateAdvertisedListenerConfig(id int32, l v1beta1.ListenersConfig,
 	extListenerStatuses, intListenerStatuses, controllerIntListenerStatuses map[string]v1beta1.ListenerStatusList) []string {
-	advertisedListenerConfig := make([]string, 0, len(l.ExternalListeners)+len(l.InternalListeners))
+	externalListenerConfig := make([]string, 0, len(l.ExternalListeners))
+	internalListenerConfig := make([]string, 0, len(l.InternalListeners))
 
-	advertisedListenerConfig = appendListenerConfigs(advertisedListenerConfig, id, extListenerStatuses)
-	advertisedListenerConfig = appendListenerConfigs(advertisedListenerConfig, id, intListenerStatuses)
-	advertisedListenerConfig = appendListenerConfigs(advertisedListenerConfig, id, controllerIntListenerStatuses)
+	externalListenerConfig = appendListenerConfigs(externalListenerConfig, id, extListenerStatuses)
+	internalListenerConfig = appendListenerConfigs(internalListenerConfig, id, intListenerStatuses)
+	internalListenerConfig = appendListenerConfigs(internalListenerConfig, id, controllerIntListenerStatuses)
 
-	return advertisedListenerConfig
+	return append(externalListenerConfig, internalListenerConfig...)
 }
 
 func appendListenerConfigs(advertisedListenerConfig []string, id int32,

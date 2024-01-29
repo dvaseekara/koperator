@@ -16,6 +16,7 @@ package envoy
 
 import (
 	"fmt"
+	"sort"
 
 	envoyaccesslog "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoybootstrap "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
@@ -27,8 +28,11 @@ import (
 	envoystdoutaccesslog "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/stream/v3"
 	envoyhttphealthcheck "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/health_check/v3"
 	envoyhttprouter "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
+	tls_inspectorv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoyhcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoytcpproxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
+	tlsv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	envoytypesmatcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	envoytypes "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/ghodss/yaml"
@@ -99,8 +103,13 @@ func generateEnvoyHealthCheckListener(ingressConfig v1beta1.IngressConfig, log l
 		Headers: []*envoyroute.HeaderMatcher{
 			{
 				Name: ":path",
-				HeaderMatchSpecifier: &envoyroute.HeaderMatcher_ExactMatch{
-					ExactMatch: envoyutils.HealthCheckPath,
+				HeaderMatchSpecifier: &envoyroute.HeaderMatcher_StringMatch{
+					StringMatch: &envoytypesmatcher.StringMatcher{
+						IgnoreCase: true,
+						MatchPattern: &envoytypesmatcher.StringMatcher_Exact{
+							Exact: envoyutils.HealthCheckPath,
+						},
+					},
 				},
 			},
 		},
@@ -203,7 +212,90 @@ func generateEnvoyHealthCheckListener(ingressConfig v1beta1.IngressConfig, log l
 				},
 			},
 		},
+		SocketOptions: getKeepAliveSocketOptions(),
 	}
+}
+
+func GenerateEnvoyTLSFilterChain(tcpProxy *envoytcpproxy.TcpProxy, brokerFqdn string, log logr.Logger) (*envoylistener.FilterChain, error) {
+	tlsContext := &tlsv3.DownstreamTlsContext{
+		CommonTlsContext: &tlsv3.CommonTlsContext{
+			TlsParams: &tlsv3.TlsParameters{
+				TlsMinimumProtocolVersion: tlsv3.TlsParameters_TLSv1_2,
+				TlsMaximumProtocolVersion: tlsv3.TlsParameters_TLSv1_3,
+			},
+			TlsCertificates: []*tlsv3.TlsCertificate{
+				{
+					CertificateChain: &envoycore.DataSource{
+						Specifier: &envoycore.DataSource_Filename{
+							Filename: "/certs/certificate.crt",
+						},
+					},
+					PrivateKey: &envoycore.DataSource{
+						Specifier: &envoycore.DataSource_Filename{
+							Filename: "/certs/private.key",
+						},
+					},
+				},
+			},
+		},
+	}
+	pbTlsContext, err := anypb.New(tlsContext)
+	if err != nil {
+		log.Error(err, "could not marshall envoy tcp_proxy tls config")
+		return nil, err
+	}
+
+	pbstTcpProxy, err := anypb.New(tcpProxy)
+	if err != nil {
+		log.Error(err, "could not marshall envoy tcp_proxy config")
+		return nil, err
+	}
+
+	brokerTcpProxyFilter := &envoylistener.Filter{
+		Name: wellknown.TCPProxy,
+		ConfigType: &envoylistener.Filter_TypedConfig{
+			TypedConfig: pbstTcpProxy,
+		},
+	}
+
+	filterChain := &envoylistener.FilterChain{
+		FilterChainMatch: &envoylistener.FilterChainMatch{
+			ServerNames:       []string{brokerFqdn},
+			TransportProtocol: "tls",
+		},
+		TransportSocket: &envoycore.TransportSocket{
+			Name: "envoy.transport_sockets.tls",
+			ConfigType: &envoycore.TransportSocket_TypedConfig{
+				TypedConfig: pbTlsContext,
+			},
+		},
+		Filters: []*envoylistener.Filter{
+			brokerTcpProxyFilter,
+		},
+	}
+	return filterChain, nil
+}
+
+func GenerateEnvoyFilterChain(tcpProxy *envoytcpproxy.TcpProxy, log logr.Logger) (*envoylistener.FilterChain, error) {
+	pbstTcpProxy, err := anypb.New(tcpProxy)
+	if err != nil {
+		log.Error(err, "could not marshall envoy tcp_proxy config")
+		return nil, err
+	}
+
+	brokerTcpProxyFilter := &envoylistener.Filter{
+		Name: wellknown.TCPProxy,
+		ConfigType: &envoylistener.Filter_TypedConfig{
+			TypedConfig: pbstTcpProxy,
+		},
+	}
+
+	filterChain := &envoylistener.FilterChain{
+		Filters: []*envoylistener.Filter{
+			brokerTcpProxyFilter,
+		},
+	}
+	return filterChain, nil
 }
 
 // GenerateEnvoyConfig generate envoy configuration file
@@ -224,6 +316,10 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 
 	var listeners []*envoylistener.Listener
 	var clusters []*envoycluster.Cluster
+	var filterChain *envoylistener.FilterChain
+	var err error
+
+	tempListeners := make(map[int32][]*envoylistener.FilterChain)
 
 	for _, brokerId := range util.GetBrokerIdsFromStatusAndSpec(kc.Status.BrokersState, kc.Spec.Brokers, log) {
 		brokerConfig, err := kafkautils.GatherBrokerConfigIfAvailable(kc.Spec, brokerId)
@@ -236,46 +332,38 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 			tcpProxy := &envoytcpproxy.TcpProxy{
 				StatPrefix:         fmt.Sprintf("broker_tcp-%d", brokerId),
 				MaxConnectAttempts: &wrapperspb.UInt32Value{Value: 2},
+				IdleTimeout:        &durationpb.Duration{Seconds: 560},
 				ClusterSpecifier: &envoytcpproxy.TcpProxy_Cluster{
 					Cluster: fmt.Sprintf("broker-%d", brokerId),
 				},
 			}
-			pbstTcpProxy, err := anypb.New(tcpProxy)
-			if err != nil {
-				log.Error(err, "could not marshall envoy tcp_proxy config")
-				return ""
+
+			if elistener.TLSEnabled() {
+				filterChain, err = GenerateEnvoyTLSFilterChain(tcpProxy, ingressConfig.EnvoyConfig.GetBrokerHostname(int32(brokerId)), log)
+				if err != nil {
+					log.Error(err, "Unable to generate broker envoy tls filter chain")
+					return ""
+				}
+			} else {
+				filterChain, err = GenerateEnvoyFilterChain(tcpProxy, log)
+				if err != nil {
+					log.Error(err, "Unable to generate broker envoy filter chain")
+					return ""
+				}
 			}
-			listeners = append(listeners, &envoylistener.Listener{
-				Address: &envoycore.Address{
-					Address: &envoycore.Address_SocketAddress{
-						SocketAddress: &envoycore.SocketAddress{
-							Address: "0.0.0.0",
-							PortSpecifier: &envoycore.SocketAddress_PortValue{
-								PortValue: uint32(elistener.ExternalStartingPort + int32(brokerId)),
-							},
-						},
-					},
-				},
-				FilterChains: []*envoylistener.FilterChain{
-					{
-						Filters: []*envoylistener.Filter{
-							{
-								Name: wellknown.TCPProxy,
-								ConfigType: &envoylistener.Filter_TypedConfig{
-									TypedConfig: pbstTcpProxy,
-								},
-							},
-						},
-					},
-				},
-			})
+
+			brokerPort := elistener.GetBrokerPort(int32(brokerId))
+			tempListeners[brokerPort] = append(tempListeners[brokerPort], filterChain)
 
 			clusters = append(clusters, &envoycluster.Cluster{
-				Name:                 fmt.Sprintf("broker-%d", brokerId),
-				ConnectTimeout:       &durationpb.Duration{Seconds: 1},
+				Name:           fmt.Sprintf("broker-%d", brokerId),
+				ConnectTimeout: &durationpb.Duration{Seconds: 1},
+				UpstreamConnectionOptions: &envoycluster.UpstreamConnectionOptions{
+					TcpKeepalive: getTcpKeepalive(),
+				},
 				ClusterDiscoveryType: &envoycluster.Cluster_Type{Type: envoycluster.Cluster_STRICT_DNS},
 				LbPolicy:             envoycluster.Cluster_ROUND_ROBIN,
-				// disable circuit breakingL:
+				// disable circuit breaking:
 				// https://www.envoyproxy.io/docs/envoy/latest/faq/load_balancing/disable_circuit_breaking
 				CircuitBreakers: &envoycluster.CircuitBreakers{
 					Thresholds: []*envoycluster.CircuitBreakers_Thresholds{
@@ -320,45 +408,72 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 			})
 		}
 	}
-	// Create an any cast broker access point
 
 	// TCP_Proxy filter configuration
 	tcpProxy := &envoytcpproxy.TcpProxy{
 		StatPrefix:         envoyutils.AllBrokerEnvoyConfigName,
+		IdleTimeout:        &durationpb.Duration{Seconds: 560},
 		MaxConnectAttempts: &wrapperspb.UInt32Value{Value: 2},
 		ClusterSpecifier: &envoytcpproxy.TcpProxy_Cluster{
 			Cluster: envoyutils.AllBrokerEnvoyConfigName,
 		},
 	}
-	pbstTcpProxy, err := anypb.New(tcpProxy)
-	if err != nil {
-		log.Error(err, "could not marshall envoy tcp_proxy config")
-		return ""
+
+	// Create TLS anycast broker listener
+	if elistener.TLSEnabled() {
+		filterChain, err = GenerateEnvoyTLSFilterChain(tcpProxy, ingressConfig.HostnameOverride, log)
+		if err != nil {
+			log.Error(err, "Unable to generate anycast envoy tls filter chain")
+			return ""
+		}
+	} else {
+		filterChain, err = GenerateEnvoyFilterChain(tcpProxy, log)
+		if err != nil {
+			log.Error(err, "Unable to generate anycast envoy filter chain")
+			return ""
+		}
 	}
-	listeners = append(listeners, &envoylistener.Listener{
-		Address: &envoycore.Address{
-			Address: &envoycore.Address_SocketAddress{
-				SocketAddress: &envoycore.SocketAddress{
-					Address: "0.0.0.0",
-					PortSpecifier: &envoycore.SocketAddress_PortValue{
-						PortValue: uint32(elistener.GetIngressControllerTargetPort()),
-					},
-				},
-			},
-		},
-		FilterChains: []*envoylistener.FilterChain{
-			{
-				Filters: []*envoylistener.Filter{
-					{
-						Name: wellknown.TCPProxy,
-						ConfigType: &envoylistener.Filter_TypedConfig{
-							TypedConfig: pbstTcpProxy,
+
+	tempListeners[elistener.GetAnyCastPort()] = append(tempListeners[elistener.GetAnyCastPort()], filterChain)
+
+	// sort the tempListeners map for consistent results
+	ports := make([]int, 0, len(tempListeners))
+	for p := range tempListeners {
+		ports = append(ports, int(p))
+	}
+	sort.Ints(ports)
+
+	tlsListenerFilter := &tls_inspectorv3.TlsInspector{}
+	pbTlsListenerFilter, _ := anypb.New(tlsListenerFilter)
+
+	for _, p := range ports {
+		newListener := &envoylistener.Listener{
+			Address: &envoycore.Address{
+				Address: &envoycore.Address_SocketAddress{
+					SocketAddress: &envoycore.SocketAddress{
+						Address: "0.0.0.0",
+						PortSpecifier: &envoycore.SocketAddress_PortValue{
+							PortValue: uint32(p),
 						},
 					},
 				},
 			},
-		},
-	})
+			FilterChains:  tempListeners[int32(p)],
+			SocketOptions: getKeepAliveSocketOptions(),
+		}
+
+		if elistener.TLSEnabled() {
+			newListener.ListenerFilters = []*envoylistener.ListenerFilter{
+				{
+					Name: "tls_inspector",
+					ConfigType: &envoylistener.ListenerFilter_TypedConfig{
+						TypedConfig: pbTlsListenerFilter,
+					},
+				},
+			}
+		}
+		listeners = append(listeners, newListener)
+	}
 
 	// health-check http listener
 	healthCheckListener := generateEnvoyHealthCheckListener(ingressConfig, log)
@@ -368,8 +483,11 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 	listeners = append(listeners, healthCheckListener)
 
 	clusters = append(clusters, &envoycluster.Cluster{
-		Name:                      envoyutils.AllBrokerEnvoyConfigName,
-		ConnectTimeout:            &durationpb.Duration{Seconds: 1},
+		Name:           envoyutils.AllBrokerEnvoyConfigName,
+		ConnectTimeout: &durationpb.Duration{Seconds: 1},
+		UpstreamConnectionOptions: &envoycluster.UpstreamConnectionOptions{
+			TcpKeepalive: getTcpKeepalive(),
+		},
 		IgnoreHealthOnHostRemoval: true,
 		HealthChecks: []*envoycore.HealthCheck{
 			{
@@ -458,4 +576,51 @@ func GenerateEnvoyConfig(kc *v1beta1.KafkaCluster, elistener v1beta1.ExternalLis
 		return ""
 	}
 	return string(marshalledConfig)
+}
+
+func getTcpKeepalive() *envoycore.TcpKeepalive {
+	return &envoycore.TcpKeepalive{
+		KeepaliveProbes:   wrapperspb.UInt32(3),
+		KeepaliveTime:     wrapperspb.UInt32(30),
+		KeepaliveInterval: wrapperspb.UInt32(30),
+	}
+}
+
+func getKeepAliveSocketOptions() []*envoycore.SocketOption {
+	return []*envoycore.SocketOption{
+		// enable socket keep-alive
+		{
+			// SOL_SOCKET = 1
+			Level: 1,
+			// SO_KEEPALIVE = 9
+			Name:  9,
+			Value: &envoycore.SocketOption_IntValue{IntValue: 1},
+			State: envoycore.SocketOption_STATE_PREBIND,
+		},
+		// configure keep alive idle, interval and count
+		{
+			// IPPROTO_TCP = 6
+			Level: 6,
+			// TCP_KEEPIDLE = 4
+			Name:  4,
+			Value: &envoycore.SocketOption_IntValue{IntValue: 30},
+			State: envoycore.SocketOption_STATE_PREBIND,
+		},
+		{
+			// IPPROTO_TCP = 6
+			Level: 6,
+			// TCP_KEEPINTVL = 5
+			Name:  5,
+			Value: &envoycore.SocketOption_IntValue{IntValue: 30},
+			State: envoycore.SocketOption_STATE_PREBIND,
+		},
+		{
+			// IPPROTO_TCP = 6
+			Level: 6,
+			// TCP_KEEPCNT = 6
+			Name:  6,
+			Value: &envoycore.SocketOption_IntValue{IntValue: 3},
+			State: envoycore.SocketOption_STATE_PREBIND,
+		},
+	}
 }
