@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -754,11 +754,11 @@ func TestGenerateBrokerConfigKRaftMode(t *testing.T) {
 				InternalListeners: []v1beta1.InternalListenerConfig{
 					{
 						CommonListenerSpec: v1beta1.CommonListenerSpec{
-							Type:          v1beta1.SecurityProtocol("PLAINTEXT"),
-							Name:          "internal",
-							ContainerPort: 9092,
+							Type:                            v1beta1.SecurityProtocol("PLAINTEXT"),
+							Name:                            "internal",
+							ContainerPort:                   9092,
+							UsedForInnerBrokerCommunication: true,
 						},
-						UsedForInnerBrokerCommunication: true,
 					},
 					{
 						CommonListenerSpec: v1beta1.CommonListenerSpec{
@@ -892,11 +892,11 @@ process.roles=broker
 				InternalListeners: []v1beta1.InternalListenerConfig{
 					{
 						CommonListenerSpec: v1beta1.CommonListenerSpec{
-							Type:          v1beta1.SecurityProtocol("PLAINTEXT"),
-							Name:          "internal",
-							ContainerPort: 9092,
+							Type:                            v1beta1.SecurityProtocol("PLAINTEXT"),
+							Name:                            "internal",
+							ContainerPort:                   9092,
+							UsedForInnerBrokerCommunication: true,
 						},
-						UsedForInnerBrokerCommunication: true,
 					},
 					{
 						CommonListenerSpec: v1beta1.CommonListenerSpec{

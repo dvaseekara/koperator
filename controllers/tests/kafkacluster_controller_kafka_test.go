@@ -167,7 +167,9 @@ func expectKafkaBrokerConfigmap(ctx context.Context, kafkaCluster *v1beta1.Kafka
 		switch broker.Id {
 		case 0:
 			// broker-only node
-			expectedBrokerConfig = fmt.Sprintf(`advertised.listeners=INTERNAL://%s-%d.%s.svc.cluster.local:29092,TEST://test.host.com:%d
+			//debug
+			fmt.Println("Broker-only mode line 171")
+			expectedBrokerConfig = fmt.Sprintf(`advertised.listeners=TEST://test.host.com:%d,INTERNAL://%s-%d.%s.svc.cluster.local:29092
 controller.listener.names=CONTROLLER
 controller.quorum.voters=1@%s-1.%s.svc.cluster.local:29093,2@%s-2.%s.svc.cluster.local:29093
 cruise.control.metrics.reporter.bootstrap.servers=%s-all-broker.%s.svc.cluster.local:29092
@@ -179,10 +181,12 @@ log.dirs=/kafka-logs/kafka,/ephemeral-dir1/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=%d
 process.roles=broker
-`, kafkaCluster.Name, broker.Id, kafkaCluster.Namespace, 19090+broker.Id, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name,
+`, 19090+broker.Id, kafkaCluster.Name, broker.Id, kafkaCluster.Namespace, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name,
 				kafkaCluster.Namespace, broker.Id)
 		case 1:
 			// controller-only node
+			//debug
+			fmt.Println("Controller-only mode line 187")
 			expectedBrokerConfig = fmt.Sprintf(`controller.listener.names=CONTROLLER
 controller.quorum.voters=1@%s-1.%s.svc.cluster.local:29093,2@%s-2.%s.svc.cluster.local:29093
 cruise.control.metrics.reporter.bootstrap.servers=%s-all-broker.%s.svc.cluster.local:29092
@@ -198,7 +202,9 @@ process.roles=controller
 				kafkaCluster.Namespace, broker.Id)
 		case 2:
 			// combined node
-			expectedBrokerConfig = fmt.Sprintf(`advertised.listeners=INTERNAL://%s-%d.%s.svc.cluster.local:29092,TEST://test.host.com:%d
+			//debug
+			fmt.Println("Combined-only mode line 206")
+			expectedBrokerConfig = fmt.Sprintf(`advertised.listeners=TEST://test.host.com:%d,INTERNAL://%s-%d.%s.svc.cluster.local:29092
 controller.listener.names=CONTROLLER
 controller.quorum.voters=1@%s-1.%s.svc.cluster.local:29093,2@%s-2.%s.svc.cluster.local:29093
 cruise.control.metrics.reporter.bootstrap.servers=%s-all-broker.%s.svc.cluster.local:29092
@@ -210,22 +216,22 @@ log.dirs=/kafka-logs/kafka,/ephemeral-dir1/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=%d
 process.roles=controller,broker
-`, kafkaCluster.Name, broker.Id, kafkaCluster.Namespace, 19090+broker.Id, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name,
+`, 19090+broker.Id, kafkaCluster.Name, broker.Id, kafkaCluster.Namespace, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name, kafkaCluster.Namespace, kafkaCluster.Name,
 				kafkaCluster.Namespace, broker.Id)
 		}
 	} else {
-		expectedBrokerConfig = fmt.Sprintf(`advertised.listeners=CONTROLLER://kafkacluster-%d-%d.kafka-%d.svc.cluster.local:29093,INTERNAL://kafkacluster-%d-%d.kafka-%d.svc.cluster.local:29092,TEST://test.host.com:%d
+		expectedBrokerConfig = fmt.Sprintf(`advertised.listeners=TEST://test.host.com:%d,CONTROLLER://kafkacluster-%d-%d.kafka-%d.svc.cluster.local:29093,INTERNAL://kafkacluster-%d-%d.kafka-%d.svc.cluster.local:29092
 broker.id=%d
 control.plane.listener.name=CONTROLLER
 cruise.control.metrics.reporter.bootstrap.servers=kafkacluster-1-all-broker.kafka-1.svc.cluster.local:29092
 cruise.control.metrics.reporter.kubernetes.mode=true
 inter.broker.listener.name=INTERNAL
-listener.security.protocol.map=TEST:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-listeners=TEST://:9094,INTERNAL://:29092,CONTROLLER://:29093
+listener.security.protocol.map=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,TEST:PLAINTEXT
+listeners=INTERNAL://:29092,CONTROLLER://:29093,TEST://:9094
 log.dirs=/kafka-logs/kafka,/ephemeral-dir1/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 zookeeper.connect=/
-`, randomGenTestNumber, broker.Id, randomGenTestNumber, randomGenTestNumber, broker.Id, randomGenTestNumber, 19090+broker.Id, broker.Id)
+`, 19090+broker.Id, randomGenTestNumber, broker.Id, randomGenTestNumber, randomGenTestNumber, broker.Id, randomGenTestNumber, broker.Id)
 	}
 	Expect(configMap.Data).To(HaveKeyWithValue("broker-config", expectedBrokerConfig))
 

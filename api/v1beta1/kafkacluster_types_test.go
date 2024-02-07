@@ -442,9 +442,11 @@ func TestGetBrokerLabels(t *testing.T) {
 		BrokerIdLabelKey: strconv.Itoa(expectedBrokerId),
 		KafkaCRLabelKey:  expectedKafkaCRName,
 		"test_label_key": "test_label_value",
+		ProcessRolesKey:  "broker",
 	}
 
 	brokerConfig := &BrokerConfig{
+		Roles: []string{"broker"},
 		BrokerLabels: map[string]string{
 			AppLabelKey:      "test_app",
 			BrokerIdLabelKey: "test_id",
