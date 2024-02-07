@@ -4,7 +4,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.13.0
-<<<<<<< HEAD:charts/kafka-operator/templates/crds.yaml
   name: cruisecontroloperations.kafka.banzaicloud.io
 spec:
   group: kafka.banzaicloud.io
@@ -166,8 +165,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.13.0
-=======
->>>>>>> origin/master:charts/kafka-operator/crds/kafkaclusters.yaml
   name: kafkaclusters.kafka.banzaicloud.io
 spec:
   group: kafka.banzaicloud.io
@@ -22268,7 +22265,6 @@ spec:
     storage: true
     subresources:
       status: {}
-<<<<<<< HEAD:charts/kafka-operator/templates/crds.yaml
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -22511,6 +22507,3 @@ spec:
     storage: true
     subresources:
       status: {}
-{{- end }}
-=======
->>>>>>> origin/master:charts/kafka-operator/crds/kafkaclusters.yaml

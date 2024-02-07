@@ -155,6 +155,14 @@ func configureBrokerKRaftMode(bConfig *v1beta1.BrokerConfig, brokerID int32, kaf
 		}
 	}
 
+	// Storage configuration!!!
+	storageConf := generateStorageConfig(bConfig.StorageConfigs)
+	if len(storageConf) > 0 {
+		if err := config.Set(kafkautils.KafkaConfigBrokerLogDirectory, storageConf); err != nil {
+			log.Error(err, "setting log.dirs in broker configuration resulted an error")
+		}
+	}
+
 	// Add listener configuration
 	listenerConf, listenerConfig := generateListenerSpecificConfig(&kafkaCluster.Spec.ListenersConfig, serverPasses, log)
 	config.Merge(listenerConf)
