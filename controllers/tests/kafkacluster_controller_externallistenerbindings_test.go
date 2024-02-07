@@ -94,7 +94,7 @@ func expectDefaultBrokerSettingsForExternalListenerBinding(ctx context.Context, 
 
 		listenerSecMap, found := brokerConfig.Get(kafkautils.KafkaConfigListenerSecurityProtocolMap)
 		Expect(found).To(BeTrue())
-		Expect(listenerSecMap.Value()).To(Equal("TEST:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"))
+		Expect(listenerSecMap.Value()).To(Equal("INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,TEST:PLAINTEXT"))
 		// check service
 		service := corev1.Service{}
 		Eventually(ctx, func() error {
