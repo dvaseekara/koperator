@@ -18,9 +18,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/banzaicloud/koperator/api/v1beta1"
 	"github.com/banzaicloud/koperator/pkg/util/istioingress"
-	"github.com/stretchr/testify/require"
 
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
