@@ -103,7 +103,7 @@ fi`},
 					}),
 
 					Command:      command,
-					Ports:        append(r.generateKafkaContainerPorts(log)),
+					Ports:        r.generateKafkaContainerPorts(log),
 					VolumeMounts: getVolumeMounts(brokerConfig.VolumeMounts, dataVolumeMount, r.KafkaCluster.Spec, r.KafkaCluster.Name),
 					Resources:    *brokerConfig.GetResources(),
 				},
