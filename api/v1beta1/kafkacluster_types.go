@@ -155,7 +155,7 @@ type KafkaClusterSpec struct {
 	RollingUpgradeConfig        RollingUpgradeConfig    `json:"rollingUpgradeConfig"`
 	// Selector for broker pods that need to be recycled/reconciled
 	TaintedBrokersSelector *metav1.LabelSelector `json:"taintedBrokersSelector,omitempty"`
-	// +kubebuilder:validation:Enum=envoy;istioingress
+	// +kubebuilder:validation:Enum=envoy;contour;istioingress
 	// IngressController specifies the type of the ingress controller to be used for external listeners. The `istioingress` ingress controller type requires the `spec.istioControlPlane` field to be populated as well.
 	IngressController string `json:"ingressController,omitempty"`
 	// IstioControlPlane is a reference to the IstioControlPlane resource for envoy configuration. It must be specified if istio ingress is used.
@@ -673,7 +673,7 @@ type ExternalListenerConfig struct {
 	// IngressControllerTargetPort defines the container port that the ingress controller uses for handling external traffic.
 	// If not defined, 29092 will be used as the default IngressControllerTargetPort value.
 	IngressControllerTargetPort *int32 `json:"ingressControllerTargetPort,omitempty"`
-	// +kubebuilder:validation:Enum=LoadBalancer;NodePort
+	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP;ExternalName
 	// accessMethod defines the method which the external listener is exposed through.
 	// Two types are supported LoadBalancer and NodePort.
 	// The recommended and default is the LoadBalancer.
