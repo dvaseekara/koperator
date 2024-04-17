@@ -54,6 +54,7 @@ import (
 	"github.com/banzaicloud/koperator/api/v1beta1"
 	"github.com/banzaicloud/koperator/pkg/errorfactory"
 	"github.com/banzaicloud/koperator/pkg/util/cert"
+	"github.com/banzaicloud/koperator/pkg/util/contour"
 	envoyutils "github.com/banzaicloud/koperator/pkg/util/envoy"
 	"github.com/banzaicloud/koperator/pkg/util/istioingress"
 	properties "github.com/banzaicloud/koperator/properties/pkg"
@@ -321,6 +322,13 @@ func GetIngressConfigs(kafkaClusterSpec v1beta1.KafkaClusterSpec,
 					IstioIngressConfig:     &kafkaClusterSpec.IstioIngressConfig,
 				},
 			}
+		}
+	case contour.IngressControllerName:
+		ingressConfigs = map[string]v1beta1.IngressConfig{
+			IngressConfigGlobalName: {
+				IngressServiceSettings: eListenerConfig.IngressServiceSettings,
+				EnvoyConfig:            &kafkaClusterSpec.EnvoyConfig,
+			},
 		}
 	default:
 		return nil, "", errors.NewWithDetails("not supported ingress type", "name", kafkaClusterSpec.GetIngressController())

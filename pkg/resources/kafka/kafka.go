@@ -1330,6 +1330,7 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 
 			// optionally add all brokers service to the top of the list
 			if eListener.GetAccessMethod() != corev1.ServiceTypeNodePort {
+				fmt.Println("-------------------------------")
 				if foundLBService == nil {
 					foundLBService, err = getServiceFromExternalListener(r.Client, r.KafkaCluster, eListener.Name, iConfigName)
 					if err != nil {
