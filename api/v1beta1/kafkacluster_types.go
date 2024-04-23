@@ -671,7 +671,7 @@ type ExternalListenerConfig struct {
 	// IngressControllerTargetPort defines the container port that the ingress controller uses for handling external traffic.
 	// If not defined, 29092 will be used as the default IngressControllerTargetPort value.
 	IngressControllerTargetPort *int32 `json:"ingressControllerTargetPort,omitempty"`
-	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP;ExternalName
+	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
 	// accessMethod defines the method which the external listener is exposed through.
 	// Two types are supported LoadBalancer and NodePort.
 	// The recommended and default is the LoadBalancer.

@@ -22,6 +22,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/go-logr/logr"
+	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -41,6 +42,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/kafkaclient"
 	"github.com/banzaicloud/koperator/pkg/pki"
 	"github.com/banzaicloud/koperator/pkg/resources"
+	"github.com/banzaicloud/koperator/pkg/resources/clusteripexternalaccess"
 	"github.com/banzaicloud/koperator/pkg/resources/cruisecontrol"
 	"github.com/banzaicloud/koperator/pkg/resources/cruisecontrolmonitoring"
 	"github.com/banzaicloud/koperator/pkg/resources/envoy"
@@ -116,6 +118,7 @@ func (r *KafkaClusterReconciler) Reconcile(ctx context.Context, request ctrl.Req
 		envoy.New(r.Client, instance),
 		istioingress.New(r.Client, instance),
 		nodeportexternalaccess.New(r.Client, instance),
+		clusteripexternalaccess.New(r.Client, instance),
 		kafkamonitoring.New(r.Client, instance),
 		cruisecontrolmonitoring.New(r.Client, instance),
 		kafka.New(r.Client, r.DirectClient, instance, r.KafkaClientProvider),
@@ -363,6 +366,7 @@ func SetupKafkaClusterWithManager(mgr ctrl.Manager) *ctrl.Builder {
 
 	kafkaWatches(builder)
 	envoyWatches(builder)
+	contourWatches(builder)
 	cruiseControlWatches(builder)
 
 	builder.WithEventFilter(
@@ -413,6 +417,12 @@ func envoyWatches(builder *ctrl.Builder) *ctrl.Builder {
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ConfigMap{})
+}
+
+func contourWatches(builder *ctrl.Builder) *ctrl.Builder {
+	return builder.
+		Owns(&corev1.Service{}).
+		Owns(&contour.HTTPProxy{})
 }
 
 func cruiseControlWatches(builder *ctrl.Builder) *ctrl.Builder {

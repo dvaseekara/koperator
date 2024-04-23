@@ -50,6 +50,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	certutil "github.com/banzaicloud/koperator/pkg/util/cert"
+	contourutils "github.com/banzaicloud/koperator/pkg/util/contour"
 	envoyutils "github.com/banzaicloud/koperator/pkg/util/envoy"
 	istioingressutils "github.com/banzaicloud/koperator/pkg/util/istioingress"
 	"github.com/banzaicloud/koperator/pkg/util/kafka"
@@ -1285,6 +1286,8 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 		} else {
 			brokerHost = fmt.Sprintf("%s-%d-%s.%s%s", r.KafkaCluster.Name, broker.Id, eListener.Name, r.KafkaCluster.Namespace, brokerHost)
 		}
+	} else if eListener.GetAccessMethod() == corev1.ServiceTypeClusterIP {
+		brokerHost = fmt.Sprintf("b-%d-%s-%s", broker.Id, r.KafkaCluster.Name, eListener.Name)
 	}
 	if eListener.TLSEnabled() {
 		brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
@@ -1330,7 +1333,6 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 
 			// optionally add all brokers service to the top of the list
 			if eListener.GetAccessMethod() != corev1.ServiceTypeNodePort {
-				fmt.Println("-------------------------------")
 				if foundLBService == nil {
 					foundLBService, err = getServiceFromExternalListener(r.Client, r.KafkaCluster, eListener.Name, iConfigName)
 					if err != nil {
@@ -1508,6 +1510,12 @@ func getServiceFromExternalListener(client client.Client, cluster *v1beta1.Kafka
 			iControllerServiceName = fmt.Sprintf(envoyutils.EnvoyServiceName, eListenerName, cluster.GetName())
 		} else {
 			iControllerServiceName = fmt.Sprintf(envoyutils.EnvoyServiceNameWithScope, eListenerName, ingressConfigName, cluster.GetName())
+		}
+	case contourutils.IngressControllerName:
+		if ingressConfigName == util.IngressConfigGlobalName {
+			iControllerServiceName = fmt.Sprintf(contourutils.ContourServiceName, eListenerName, cluster.GetName())
+		} else {
+			iControllerServiceName = fmt.Sprintf(contourutils.ContourServiceNameWithScope, eListenerName, ingressConfigName, cluster.GetName())
 		}
 	}
 
