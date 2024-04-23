@@ -21,6 +21,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.13.1
 	github.com/onsi/gomega v1.30.0
 	github.com/pavlo-v-chernykh/keystore-go/v4 v4.5.0
+	github.com/projectcontour/contour v1.26.0
 	github.com/prometheus/common v0.45.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.3.0

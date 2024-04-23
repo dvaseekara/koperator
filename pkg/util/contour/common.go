@@ -16,6 +16,10 @@ package contour
 
 const (
 
+	// EnvoyServiceName name for loadbalancer service
+	ContourServiceName = "contour-loadbalancer-%s-%s"
+	// EnvoyServiceNameWithScope name for loadbalancer service
+	ContourServiceNameWithScope = "countour-loadbalancer-%s-%s-%s"
 	// IngressControllerName name for contour ingress service
 	IngressControllerName = "contour"
 )

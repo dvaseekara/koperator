@@ -59,6 +59,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	"github.com/banzaicloud/koperator/pkg/webhooks"
+	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -77,6 +78,8 @@ func init() {
 	_ = banzaiistiov1alpha1.AddToScheme(scheme)
 
 	_ = istioclientv1beta1.AddToScheme(scheme)
+
+	_ = contour.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
