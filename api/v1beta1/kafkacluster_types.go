@@ -167,13 +167,14 @@ type KafkaClusterSpec struct {
 	// when false, they will be kept so the Kafka cluster remains available for those Kafka clients which are still using the previous ingress setting.
 	// +kubebuilder:default=false
 	// +optional
-	RemoveUnusedIngressResources bool                `json:"removeUnusedIngressResources,omitempty"`
-	PropagateLabels              bool                `json:"propagateLabels,omitempty"`
-	CruiseControlConfig          CruiseControlConfig `json:"cruiseControlConfig"`
-	EnvoyConfig                  EnvoyConfig         `json:"envoyConfig,omitempty"`
-	MonitoringConfig             MonitoringConfig    `json:"monitoringConfig,omitempty"`
-	AlertManagerConfig           *AlertManagerConfig `json:"alertManagerConfig,omitempty"`
-	IstioIngressConfig           IstioIngressConfig  `json:"istioIngressConfig,omitempty"`
+	RemoveUnusedIngressResources bool                 `json:"removeUnusedIngressResources,omitempty"`
+	PropagateLabels              bool                 `json:"propagateLabels,omitempty"`
+	CruiseControlConfig          CruiseControlConfig  `json:"cruiseControlConfig"`
+	EnvoyConfig                  EnvoyConfig          `json:"envoyConfig,omitempty"`
+	ContourIngressConfig         ContourIngressConfig `json:"contourIngressConfig,omitempty"`
+	MonitoringConfig             MonitoringConfig     `json:"monitoringConfig,omitempty"`
+	AlertManagerConfig           *AlertManagerConfig  `json:"alertManagerConfig,omitempty"`
+	IstioIngressConfig           IstioIngressConfig   `json:"istioIngressConfig,omitempty"`
 	// Envs defines environment variables for Kafka broker Pods.
 	// Adding the "+" prefix to the name prepends the value to that environment variable instead of overwriting it.
 	// Add the "+" suffix to append.
@@ -696,8 +697,20 @@ type Config struct {
 
 type IngressConfig struct {
 	IngressServiceSettings `json:",inline"`
-	IstioIngressConfig     *IstioIngressConfig `json:"istioIngressConfig,omitempty"`
-	EnvoyConfig            *EnvoyConfig        `json:"envoyConfig,omitempty"`
+	IstioIngressConfig     *IstioIngressConfig   `json:"istioIngressConfig,omitempty"`
+	EnvoyConfig            *EnvoyConfig          `json:"envoyConfig,omitempty"`
+	ContourIngressConfig   *ContourIngressConfig `json:"contourIngressConfig,omitempty"`
+}
+
+type ContourIngressConfig struct {
+	// TLS secret used for Contour IngressRoute resource
+	TLSSecretName string `json:"tlsSecretName"`
+	// ContourIngressClass is the IngressClass that Contour should use to route traffic to the Kafka cluster.
+	ContourIngressClass string `json:"contourIngressClass"`
+	// Broker hostname template for Contour IngressRoute resource to generate broker hostnames.
+	BrokerFQDNTemplate string `json:"brokerFQDNTemplate"`
+	// AnyCastFQDNTemplate is the template used to generate the anycast FQDN for the Kafka cluster.
+	AnyCastFQDNTemplate string `json:"anyCastFQDNTemplate"`
 }
 
 // InternalListenerConfig defines the internal listener config for Kafka

@@ -30,7 +30,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/util"
 	contourutils "github.com/banzaicloud/koperator/pkg/util/contour"
 	"github.com/banzaicloud/koperator/pkg/util/kafka"
-	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
+	contour "github.com/heptio/contour/apis/contour/v1beta1"
 )
 
 // TODO handle deletion gracefully from status
@@ -96,12 +96,15 @@ func (r *Reconciler) ingressRoute(log logr.Logger, status v1beta1.ListenerStatus
 	port := strings.Split(address, ":")[1]
 
 	portInt, _ := strconv.Atoi(port)
-	ingressRoute := &contour.HTTPProxy{
+	ingressRoute := &contour.IngressRoute{
 		ObjectMeta: templates.ObjectMeta(fqdn,
 			apiutil.LabelsForKafka(r.KafkaCluster.Name), r.KafkaCluster),
-		Spec: contour.HTTPProxySpec{
+		Spec: contour.IngressRouteSpec{
 			VirtualHost: &contour.VirtualHost{
 				Fqdn: fqdn,
+				TLS: &contour.TLS{
+					SecretName: "heptio-contour/cluster-ssl-corp",
+				},
 			},
 			TCPProxy: &contour.TCPProxy{
 				Services: []contour.Service{{

@@ -22,7 +22,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/go-logr/logr"
-	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
+	contour "github.com/heptio/contour/apis/contour/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -422,7 +422,7 @@ func envoyWatches(builder *ctrl.Builder) *ctrl.Builder {
 func contourWatches(builder *ctrl.Builder) *ctrl.Builder {
 	return builder.
 		Owns(&corev1.Service{}).
-		Owns(&contour.HTTPProxy{})
+		Owns(&contour.IngressRoute{})
 }
 
 func cruiseControlWatches(builder *ctrl.Builder) *ctrl.Builder {

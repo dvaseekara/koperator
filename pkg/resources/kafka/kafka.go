@@ -1288,8 +1288,6 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 		} else {
 			brokerHost = fmt.Sprintf("%s-%d-%s.%s%s", r.KafkaCluster.Name, broker.Id, eListener.Name, r.KafkaCluster.Namespace, brokerHost)
 		}
-	} else if eListener.GetAccessMethod() == corev1.ServiceTypeClusterIP {
-		brokerHost = fmt.Sprintf("b-%d-%s-%s", broker.Id, r.KafkaCluster.Name, eListener.Name)
 	}
 	if eListener.TLSEnabled() {
 		brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
