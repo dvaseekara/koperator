@@ -18,10 +18,10 @@ require (
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
 	github.com/go-logr/logr v1.3.0
+	github.com/heptio/contour v0.15.3
 	github.com/onsi/ginkgo/v2 v2.13.1
 	github.com/onsi/gomega v1.30.0
 	github.com/pavlo-v-chernykh/keystore-go/v4 v4.5.0
-	github.com/projectcontour/contour v1.26.0
 	github.com/prometheus/common v0.45.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/mock v0.3.0
@@ -38,15 +38,25 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.0.0 // indirect
+	github.com/client9/misspell v0.3.4 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
+	github.com/gordonklaus/ineffassign v0.0.0-20180909121442-1003c8bd00dc // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/kisielk/errcheck v1.5.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/mdempsky/unconvert v0.0.0-20190325185700-2f5dc3378ed3 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/tools v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230911183012-2d3300fd4832 // indirect
+	honnef.co/go/tools v0.0.1-2019.2.3 // indirect
+	k8s.io/code-generator v0.28.4 // indirect
+	k8s.io/gengo v0.0.0-20230829151522-9cce18d56c01 // indirect
+	mvdan.cc/unparam v0.0.0-20190720180237-d51796306d8f // indirect
 )
 
 require (

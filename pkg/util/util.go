@@ -324,11 +324,32 @@ func GetIngressConfigs(kafkaClusterSpec v1beta1.KafkaClusterSpec,
 			}
 		}
 	case contour.IngressControllerName:
-		ingressConfigs = map[string]v1beta1.IngressConfig{
-			IngressConfigGlobalName: {
-				IngressServiceSettings: eListenerConfig.IngressServiceSettings,
-				EnvoyConfig:            &kafkaClusterSpec.EnvoyConfig,
-			},
+		if eListenerConfig.Config != nil {
+			defaultIngressConfigName = eListenerConfig.Config.DefaultIngressConfig
+			ingressConfigs = make(map[string]v1beta1.IngressConfig, len(eListenerConfig.Config.IngressConfig))
+			for k, iConf := range eListenerConfig.Config.IngressConfig {
+				if iConf.ContourIngressConfig != nil {
+					err := mergo.Merge(iConf.ContourIngressConfig, kafkaClusterSpec.ContourIngressConfig)
+					if err != nil {
+						return nil, "", errors.WrapWithDetails(err,
+							"could not merge global envoy config with local one", "envoyConfig", k)
+					}
+					err = mergo.Merge(&iConf.IngressServiceSettings, eListenerConfig.IngressServiceSettings)
+					if err != nil {
+						return nil, "", errors.WrapWithDetails(err,
+							"could not merge global loadbalancer config with local one",
+							"externalListenerName", eListenerConfig.Name)
+					}
+					ingressConfigs[k] = iConf
+				}
+			}
+		} else {
+			ingressConfigs = map[string]v1beta1.IngressConfig{
+				IngressConfigGlobalName: {
+					IngressServiceSettings: eListenerConfig.IngressServiceSettings,
+					ContourIngressConfig:   &kafkaClusterSpec.ContourIngressConfig,
+				},
+			}
 		}
 	default:
 		return nil, "", errors.NewWithDetails("not supported ingress type", "name", kafkaClusterSpec.GetIngressController())
