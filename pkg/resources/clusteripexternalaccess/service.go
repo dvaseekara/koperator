@@ -16,8 +16,6 @@ package clusteripexternalaccess
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +32,7 @@ import (
 )
 
 // TODO handle deletion gracefully from status
-func (r *Reconciler) brokerService(_ logr.Logger, id int32,
-	extListener v1beta1.ExternalListenerConfig) runtime.Object {
+func (r *Reconciler) brokerService(_ logr.Logger, id int32, extListener v1beta1.ExternalListenerConfig) runtime.Object {
 
 	service := &corev1.Service{
 		ObjectMeta: templates.ObjectMetaWithAnnotations(
@@ -48,7 +45,7 @@ func (r *Reconciler) brokerService(_ logr.Logger, id int32,
 			Type: corev1.ServiceTypeClusterIP,
 			Ports: []corev1.ServicePort{{
 				Name:       fmt.Sprintf("broker-%d", id),
-				Port:       extListener.ContainerPort,
+				Port:       *extListener.AnyCastPort,
 				TargetPort: intstr.FromInt(int(extListener.ContainerPort)),
 				Protocol:   corev1.ProtocolTCP,
 			},
@@ -77,7 +74,7 @@ func (r *Reconciler) clusterService(log logr.Logger, extListener v1beta1.Externa
 			Ports: []corev1.ServicePort{{
 				Name:       "tcp-all-broker",
 				Port:       *extListener.AnyCastPort,
-				TargetPort: intstr.FromInt(int(*extListener.AnyCastPort)),
+				TargetPort: intstr.FromInt(int(extListener.ContainerPort)),
 				Protocol:   corev1.ProtocolTCP,
 			},
 			},
@@ -89,27 +86,25 @@ func (r *Reconciler) clusterService(log logr.Logger, extListener v1beta1.Externa
 }
 
 // generate ingressroute resource based on status and listener name
-func (r *Reconciler) ingressRoute(log logr.Logger, status v1beta1.ListenerStatus, listenerName string, id int32) runtime.Object {
+func (r *Reconciler) ingressRoute(log logr.Logger, extListener v1beta1.ExternalListenerConfig, fqdn string,
+	ingressConfig v1beta1.IngressConfig, service runtime.Object) runtime.Object {
 
-	address := status.Address
-	fqdn := strings.Split(address, ":")[0]
-	port := strings.Split(address, ":")[1]
-
-	portInt, _ := strconv.Atoi(port)
+	svc := service.(*corev1.Service)
 	ingressRoute := &contour.IngressRoute{
-		ObjectMeta: templates.ObjectMeta(fqdn,
-			apiutil.LabelsForKafka(r.KafkaCluster.Name), r.KafkaCluster),
+		ObjectMeta: templates.ObjectMetaWithAnnotations(fqdn,
+			apiutil.LabelsForKafka(r.KafkaCluster.Name), extListener.GetServiceAnnotations(), r.KafkaCluster),
 		Spec: contour.IngressRouteSpec{
 			VirtualHost: &contour.VirtualHost{
 				Fqdn: fqdn,
 				TLS: &contour.TLS{
-					SecretName: "heptio-contour/cluster-ssl-corp",
+					// TODO make secretName configurable
+					SecretName: ingressConfig.ContourIngressConfig.TLSSecretName,
 				},
 			},
 			TCPProxy: &contour.TCPProxy{
 				Services: []contour.Service{{
-					Name: fmt.Sprintf(kafka.NodePortServiceTemplate, r.KafkaCluster.GetName(), id, listenerName),
-					Port: portInt,
+					Name: svc.GetName(),
+					Port: int(svc.Spec.Ports[0].Port),
 				}},
 			},
 		},

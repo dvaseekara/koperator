@@ -71,41 +71,47 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 				if err != nil {
 					return err
 				}
-			}
 
-			// create per broker services ClusterIP
-			for _, broker := range r.KafkaCluster.Spec.Brokers {
-				service := r.brokerService(log, broker.Id, eListener)
-				if eListener.GetAccessMethod() == corev1.ServiceTypeClusterIP {
-					err = k8sutil.Reconcile(log, r.Client, service, r.KafkaCluster)
-					if err != nil {
-						return err
-					}
-				} else if r.KafkaCluster.Spec.RemoveUnusedIngressResources {
-					// Cleaning up unused nodeport services
-					removeService := service.(client.Object)
-					if err := r.Delete(context.Background(), removeService); client.IgnoreNotFound(err) != nil {
-						return errors.Wrap(err, "error when removing unused nodeport services")
-					}
-					log.V(1).Info(fmt.Sprintf("Deleted nodePort service '%s' for external listener '%s'", removeService.GetName(), eListener.Name))
-				}
-			}
-		}
-
-		// create IngressRoutes for each ingressConfig
-		externalListenerStatues := r.KafkaCluster.Status.ListenerStatuses.ExternalListeners
-		for name, statusList := range externalListenerStatues {
-
-			for _, status := range statusList {
-				// create HTTPProxy for each external listener
-				ingressRoute := r.ingressRoute(log, status, name, 10)
-				err := k8sutil.Reconcile(log, r.Client, ingressRoute, r.KafkaCluster)
+				// create IngressRoutes for each ingressConfig
+				fqdn := ingressConfig.ContourIngressConfig.GetAnycastFqdn()
+				ingressRoute := r.ingressRoute(log, eListener, fqdn, ingressConfig, clusterService)
+				err = k8sutil.Reconcile(log, r.Client, ingressRoute, r.KafkaCluster)
 				if err != nil {
 					return err
 				}
-			}
-		}
+				// create per broker services ClusterIP
+				for _, broker := range r.KafkaCluster.Spec.Brokers {
+					service := r.brokerService(log, broker.Id, eListener)
 
+					fqdn := ingressConfig.ContourIngressConfig.GetBrokerFqdn(broker.Id)
+					ingressRoute := r.ingressRoute(log, eListener, fqdn, ingressConfig, service)
+
+					if eListener.GetAccessMethod() == corev1.ServiceTypeClusterIP {
+						err = k8sutil.Reconcile(log, r.Client, service, r.KafkaCluster)
+						if err != nil {
+							return err
+						}
+						err = k8sutil.Reconcile(log, r.Client, ingressRoute, r.KafkaCluster)
+						if err != nil {
+							return err
+						}
+					} else if r.KafkaCluster.Spec.RemoveUnusedIngressResources {
+						// Cleaning up unused nodeport services
+						removeService := service.(client.Object)
+						if err := r.Delete(context.Background(), removeService); client.IgnoreNotFound(err) != nil {
+							return errors.Wrap(err, "error when removing unused nodeport services")
+						}
+						removeIngress := ingressRoute.(client.Object)
+						if err := r.Delete(context.Background(), removeIngress); client.IgnoreNotFound(err) != nil {
+							return errors.Wrap(err, "error when removing unused nodeport services")
+						}
+						log.V(1).Info(fmt.Sprintf("Deleted nodePort service '%s' for external listener '%s'", removeService.GetName(), eListener.Name))
+					}
+				}
+
+			}
+
+		}
 	}
 
 	log.V(1).Info("Reconciled")

@@ -592,6 +592,14 @@ func (c IngressServiceSettings) GetServiceType() corev1.ServiceType {
 	return c.ServiceType
 }
 
+func (c ContourIngressConfig) GetBrokerFqdn(brokerId int32) string {
+	return strings.Replace(c.BrokerFQDNTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
+}
+
+func (c ContourIngressConfig) GetAnycastFqdn() string {
+	return c.AnyCastFQDNTemplate
+}
+
 // Replace %id in brokerHostnameTemplate with actual broker id
 func (c EnvoyConfig) GetBrokerHostname(brokerId int32) string {
 	return strings.Replace(c.BrokerHostnameTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
