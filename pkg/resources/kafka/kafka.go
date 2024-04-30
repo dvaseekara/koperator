@@ -1257,7 +1257,8 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 	brokerHost := defaultHost
 	portNumber := eListener.GetBrokerPort(broker.Id)
 
-	if eListener.GetAccessMethod() != corev1.ServiceTypeLoadBalancer {
+	switch eListener.GetAccessMethod() {
+	case corev1.ServiceTypeNodePort:
 		bConfig, err := broker.GetBrokerConfig(r.KafkaCluster.Spec)
 		if err != nil {
 			return "", err
@@ -1288,11 +1289,19 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 		} else {
 			brokerHost = fmt.Sprintf("%s-%d-%s.%s%s", r.KafkaCluster.Name, broker.Id, eListener.Name, r.KafkaCluster.Namespace, brokerHost)
 		}
-	}
-	if eListener.TLSEnabled() {
-		brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
+	case corev1.ServiceTypeClusterIP:
+		brokerHost = iConfig.ContourIngressConfig.GetBrokerFqdn(broker.Id)
 		if brokerHost == "" {
 			return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
+		}
+		// TODO understand why this is not needed. Tests are failing when this is added
+		// portNumber = eListener.ContainerPort
+	case corev1.ServiceTypeLoadBalancer:
+		if eListener.TLSEnabled() {
+			brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
+			if brokerHost == "" {
+				return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
+			}
 		}
 	}
 	return fmt.Sprintf("%s:%d", brokerHost, portNumber), nil
@@ -1314,6 +1323,8 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 		}
 		listenerStatusList := make(v1beta1.ListenerStatusList, 0, len(r.KafkaCluster.Spec.Brokers)+1)
 		for iConfigName, iConfig := range ingressConfigs {
+
+			fmt.Println("---------------------1", iConfigName, iConfig.ContourIngressConfig)
 			if !util.IsIngressConfigInUse(iConfigName, defaultControllerName, r.KafkaCluster, log) {
 				continue
 			}
@@ -1354,6 +1365,11 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 					anyBrokerStatusName = "any-broker"
 				} else {
 					anyBrokerStatusName = fmt.Sprintf("any-broker-%s", iConfigName)
+				}
+				fmt.Println("----------------------------------1")
+				// TODO fix hack
+				if eListener.GetAccessMethod() == corev1.ServiceTypeClusterIP {
+					host = iConfig.ContourIngressConfig.GetAnycastFqdn()
 				}
 				listenerStatus := v1beta1.ListenerStatus{
 					Name:    anyBrokerStatusName,

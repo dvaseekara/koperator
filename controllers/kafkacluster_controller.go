@@ -22,7 +22,6 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/go-logr/logr"
-	contour "github.com/heptio/contour/apis/contour/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -51,6 +50,8 @@ import (
 	"github.com/banzaicloud/koperator/pkg/resources/kafkamonitoring"
 	"github.com/banzaicloud/koperator/pkg/resources/nodeportexternalaccess"
 	"github.com/banzaicloud/koperator/pkg/util"
+	// TODO uncomment this
+	// contour "github.com/heptio/contour/apis/contour/v1beta1"
 )
 
 var clusterFinalizer = "finalizer.kafkaclusters.kafka.banzaicloud.io"
@@ -421,8 +422,8 @@ func envoyWatches(builder *ctrl.Builder) *ctrl.Builder {
 
 func contourWatches(builder *ctrl.Builder) *ctrl.Builder {
 	return builder.
-		Owns(&corev1.Service{}).
-		Owns(&contour.IngressRoute{})
+		Owns(&corev1.Service{})
+	// Owns(&contour.IngressRoute{})
 }
 
 func cruiseControlWatches(builder *ctrl.Builder) *ctrl.Builder {
