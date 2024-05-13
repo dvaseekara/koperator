@@ -716,7 +716,7 @@ type ContourIngressConfig struct {
 	// Broker hostname template for Contour IngressRoute resource to generate broker hostnames.
 	BrokerFQDNTemplate string `json:"brokerFQDNTemplate"`
 	// AnyCastFQDNTemplate is the template used to generate the anycast FQDN for the Kafka cluster.
-	AnyCastFQDNTemplate string `json:"anyCastFQDNTemplate"`
+	AnyCastFQDNTemplate string `json:"anyCastFQDNTemplate,omitempty"`
 }
 
 // InternalListenerConfig defines the internal listener config for Kafka

@@ -59,7 +59,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	"github.com/banzaicloud/koperator/pkg/webhooks"
-	contour "github.com/heptio/contour/apis/contour/v1beta1"
+	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 	// +kubebuilder:scaffold:imports
 )
 
