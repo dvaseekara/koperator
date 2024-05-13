@@ -143,7 +143,6 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 			if deletionCounter > 0 {
 				log.Info(fmt.Sprintf("Removed '%d' resources for contour ingress", deletionCounter))
 			}
-
 		}
 	}
 
@@ -154,7 +153,6 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 
 // generate service for broker
 func (r *Reconciler) brokerService(_ logr.Logger, id int32, extListener v1beta1.ExternalListenerConfig) runtime.Object {
-
 	service := &corev1.Service{
 		ObjectMeta: templates.ObjectMetaWithAnnotations(
 			fmt.Sprintf(kafka.NodePortServiceTemplate, r.KafkaCluster.GetName(), id, extListener.Name),
@@ -183,7 +181,7 @@ func (r *Reconciler) brokerService(_ logr.Logger, id int32, extListener v1beta1.
 
 // generate service for anycast port
 func (r *Reconciler) clusterService(_ logr.Logger, extListener v1beta1.ExternalListenerConfig,
-	ingressConfig v1beta1.IngressConfig, ingressConfigName, defaultIngressConfigName string) runtime.Object {
+	ingressConfig v1beta1.IngressConfig, ingressConfigName, _ string) runtime.Object {
 
 	var serviceName string = util.GenerateEnvoyResourceName(contourutils.ContourServiceName, contourutils.ContourServiceNameWithScope,
 		extListener, ingressConfig, ingressConfigName, r.KafkaCluster.GetName())
@@ -215,7 +213,6 @@ func (r *Reconciler) clusterService(_ logr.Logger, extListener v1beta1.ExternalL
 // generate httproxy resource for contour ingress
 func (r *Reconciler) httpProxy(_ logr.Logger, extListener v1beta1.ExternalListenerConfig, fqdn string,
 	ingressConfig v1beta1.IngressConfig, service runtime.Object) runtime.Object {
-
 	svc := service.(*corev1.Service)
 	ingressRoute := &contour.HTTPProxy{
 		ObjectMeta: templates.ObjectMetaWithAnnotations(fqdn,
