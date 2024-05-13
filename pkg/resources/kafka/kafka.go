@@ -1301,6 +1301,8 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 				return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
 			}
 		}
+	default:
+		return "", errors.New("unsupported external listener access method")
 	}
 	return fmt.Sprintf("%s:%d", brokerHost, portNumber), nil
 }
@@ -1321,7 +1323,6 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 		}
 		listenerStatusList := make(v1beta1.ListenerStatusList, 0, len(r.KafkaCluster.Spec.Brokers)+1)
 		for iConfigName, iConfig := range ingressConfigs {
-
 			if !util.IsIngressConfigInUse(iConfigName, defaultControllerName, r.KafkaCluster, log) {
 				continue
 			}
