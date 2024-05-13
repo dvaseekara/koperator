@@ -18,7 +18,6 @@ require (
 	github.com/envoyproxy/go-control-plane v0.11.2-0.20231019082134-6e4589f570e1
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
 	github.com/go-logr/logr v1.3.0
-	github.com/heptio/contour v0.15.3
 	github.com/onsi/ginkgo/v2 v2.13.1
 	github.com/onsi/gomega v1.30.0
 	github.com/pavlo-v-chernykh/keystore-go/v4 v4.5.0
