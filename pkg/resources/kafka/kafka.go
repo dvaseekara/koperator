@@ -1303,8 +1303,8 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 				return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
 			}
 		}
-	default:
-		return "", errors.New("unsupported external listener access method")
+	case corev1.ServiceTypeExternalName:
+		return ":", errors.New("unsupported external listener access method")
 	}
 	return fmt.Sprintf("%s:%d", brokerHost, portNumber), nil
 }
