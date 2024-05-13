@@ -12917,7 +12917,6 @@ spec:
                     description: TLS secret used for Contour IngressRoute resource
                     type: string
                 required:
-                - anyCastFQDNTemplate
                 - brokerFQDNTemplate
                 - contourIngressClass
                 - tlsSecretName
@@ -19237,7 +19236,6 @@ spec:
                                           resource
                                         type: string
                                     required:
-                                    - anyCastFQDNTemplate
                                     - brokerFQDNTemplate
                                     - contourIngressClass
                                     - tlsSecretName

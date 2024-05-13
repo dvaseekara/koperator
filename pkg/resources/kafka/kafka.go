@@ -1324,7 +1324,6 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 		listenerStatusList := make(v1beta1.ListenerStatusList, 0, len(r.KafkaCluster.Spec.Brokers)+1)
 		for iConfigName, iConfig := range ingressConfigs {
 
-			fmt.Println("---------------------1", iConfigName, iConfig.ContourIngressConfig)
 			if !util.IsIngressConfigInUse(iConfigName, defaultControllerName, r.KafkaCluster, log) {
 				continue
 			}
@@ -1365,11 +1364,6 @@ func (r *Reconciler) createExternalListenerStatuses(log logr.Logger) (map[string
 					anyBrokerStatusName = "any-broker"
 				} else {
 					anyBrokerStatusName = fmt.Sprintf("any-broker-%s", iConfigName)
-				}
-				fmt.Println("----------------------------------1")
-				// TODO fix hack
-				if eListener.GetAccessMethod() == corev1.ServiceTypeClusterIP {
-					host = iConfig.ContourIngressConfig.GetAnycastFqdn()
 				}
 				listenerStatus := v1beta1.ListenerStatus{
 					Name:    anyBrokerStatusName,
