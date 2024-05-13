@@ -29,6 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
+
 	apiutil "github.com/banzaicloud/koperator/api/util"
 	"github.com/banzaicloud/koperator/api/v1beta1"
 	"github.com/banzaicloud/koperator/pkg/k8sutil"
@@ -37,7 +39,6 @@ import (
 	"github.com/banzaicloud/koperator/pkg/util"
 	contourutils "github.com/banzaicloud/koperator/pkg/util/contour"
 	"github.com/banzaicloud/koperator/pkg/util/kafka"
-	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 )
 
 const (
@@ -182,7 +183,6 @@ func (r *Reconciler) brokerService(_ logr.Logger, id int32, extListener v1beta1.
 // generate service for anycast port
 func (r *Reconciler) clusterService(_ logr.Logger, extListener v1beta1.ExternalListenerConfig,
 	ingressConfig v1beta1.IngressConfig, ingressConfigName, _ string) runtime.Object {
-
 	var serviceName string = util.GenerateEnvoyResourceName(contourutils.ContourServiceName, contourutils.ContourServiceNameWithScope,
 		extListener, ingressConfig, ingressConfigName, r.KafkaCluster.GetName())
 

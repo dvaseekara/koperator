@@ -51,6 +51,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
+
 	banzaicloudv1alpha1 "github.com/banzaicloud/koperator/api/v1alpha1"
 	banzaicloudv1beta1 "github.com/banzaicloud/koperator/api/v1beta1"
 	"github.com/banzaicloud/koperator/controllers"
@@ -59,7 +61,6 @@ import (
 	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	"github.com/banzaicloud/koperator/pkg/webhooks"
-	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 	// +kubebuilder:scaffold:imports
 )
 
