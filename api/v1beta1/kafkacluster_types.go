@@ -598,10 +598,6 @@ func (c ContourIngressConfig) GetBrokerFqdn(brokerId int32) string {
 	return strings.Replace(c.BrokerFQDNTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
 }
 
-func (c ContourIngressConfig) GetAnycastFqdn() string {
-	return c.AnyCastFQDNTemplate
-}
-
 // Replace %id in brokerHostnameTemplate with actual broker id
 func (c EnvoyConfig) GetBrokerHostname(brokerId int32) string {
 	return strings.Replace(c.BrokerHostnameTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
@@ -713,12 +709,8 @@ type IngressConfig struct {
 type ContourIngressConfig struct {
 	// TLS secret used for Contour IngressRoute resource
 	TLSSecretName string `json:"tlsSecretName"`
-	// ContourIngressClass is the IngressClass that Contour should use to route traffic to the Kafka cluster.
-	ContourIngressClass string `json:"contourIngressClass"`
 	// Broker hostname template for Contour IngressRoute resource to generate broker hostnames.
 	BrokerFQDNTemplate string `json:"brokerFQDNTemplate"`
-	// AnyCastFQDNTemplate is the template used to generate the anycast FQDN for the Kafka cluster.
-	AnyCastFQDNTemplate string `json:"anyCastFQDNTemplate,omitempty"`
 }
 
 // InternalListenerConfig defines the internal listener config for Kafka

@@ -12901,24 +12901,15 @@ spec:
                 type: string
               contourIngressConfig:
                 properties:
-                  anyCastFQDNTemplate:
-                    description: AnyCastFQDNTemplate is the template used to generate
-                      the anycast FQDN for the Kafka cluster.
-                    type: string
                   brokerFQDNTemplate:
                     description: Broker hostname template for Contour IngressRoute
                       resource to generate broker hostnames.
-                    type: string
-                  contourIngressClass:
-                    description: ContourIngressClass is the IngressClass that Contour
-                      should use to route traffic to the Kafka cluster.
                     type: string
                   tlsSecretName:
                     description: TLS secret used for Contour IngressRoute resource
                     type: string
                 required:
                 - brokerFQDNTemplate
-                - contourIngressClass
                 - tlsSecretName
                 type: object
               cruiseControlConfig:
@@ -19216,20 +19207,10 @@ spec:
                                 properties:
                                   contourIngressConfig:
                                     properties:
-                                      anyCastFQDNTemplate:
-                                        description: AnyCastFQDNTemplate is the template
-                                          used to generate the anycast FQDN for the
-                                          Kafka cluster.
-                                        type: string
                                       brokerFQDNTemplate:
                                         description: Broker hostname template for
                                           Contour IngressRoute resource to generate
                                           broker hostnames.
-                                        type: string
-                                      contourIngressClass:
-                                        description: ContourIngressClass is the IngressClass
-                                          that Contour should use to route traffic
-                                          to the Kafka cluster.
                                         type: string
                                       tlsSecretName:
                                         description: TLS secret used for Contour IngressRoute
@@ -19237,7 +19218,6 @@ spec:
                                         type: string
                                     required:
                                     - brokerFQDNTemplate
-                                    - contourIngressClass
                                     - tlsSecretName
                                     type: object
                                   envoyConfig:
