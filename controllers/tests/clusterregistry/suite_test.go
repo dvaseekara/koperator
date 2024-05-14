@@ -97,6 +97,7 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "..", "config", "base", "crds"),
 			filepath.Join("..", "..", "..", "config", "test", "crd", "cert-manager"),
+			filepath.Join("..", "..", "..", "config", "test", "crd", "projectcontour"),
 			filepath.Join("..", "..", "..", "config", "test", "crd", "istio"),
 		},
 		ControlPlaneStopTimeout:  stopTimeout,
