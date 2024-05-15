@@ -58,6 +58,9 @@ var _ = Describe("KafkaClusterWithContourIngressController", Label("contour"), f
 		contourListener.AnyCastPort = util.Int32Pointer(8443)
 		contourListener.Type = "plaintext"
 		contourListener.Name = "listener1"
+		contourListener.ServiceAnnotations = map[string]string{
+			"kubernetes.io/ingress.class": "contour",
+		}
 		contourListener.Config = &v1beta1.Config{
 
 			DefaultIngressConfig: "",
@@ -157,6 +160,9 @@ func expectContourAnycastHttpProxy(ctx context.Context, kafkaCluster *v1beta1.Ka
 	Expect(proxy.Spec.TCPProxy.Services).To(HaveLen(1))
 	Expect(proxy.Spec.TCPProxy.Services[0].Name).To(Equal(serviceName))
 	Expect(proxy.Spec.TCPProxy.Services[0].Port).To(Equal(int(*eListener.AnyCastPort)))
+	for k, v := range eListener.GetServiceAnnotations() {
+		Expect(proxy.GetAnnotations()).To(HaveKeyWithValue(k, v))
+	}
 }
 
 func expectContourBrokerHttpProxy(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
@@ -172,6 +178,9 @@ func expectContourBrokerHttpProxy(ctx context.Context, kafkaCluster *v1beta1.Kaf
 		Expect(proxy.Spec.TCPProxy.Services).To(HaveLen(1))
 		Expect(proxy.Spec.TCPProxy.Services[0].Name).To(Equal(serviceName))
 		Expect(proxy.Spec.TCPProxy.Services[0].Port).To(Equal(int(*eListener.AnyCastPort)))
+		for k, v := range eListener.GetServiceAnnotations() {
+			Expect(proxy.GetAnnotations()).To(HaveKeyWithValue(k, v))
+		}
 	}
 }
 
