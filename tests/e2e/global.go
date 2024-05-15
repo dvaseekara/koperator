@@ -38,7 +38,7 @@ var (
 	contourIngressControllerHelmDescriptor = helmDescriptor{
 		Repository:   "https://charts.bitnami.com/bitnami",
 		ChartName:    "contour",
-		ChartVersion: "v1.27.0",
+		ChartVersion: "15.4.0",
 		ReleaseName:  "contour",
 		Namespace:    "projectcontour",
 		SetValues: map[string]string{
