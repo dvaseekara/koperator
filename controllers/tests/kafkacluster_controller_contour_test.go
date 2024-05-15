@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "github.com/projectcontour/contour/apis/projectcontour/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,7 +33,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/util/kafka"
 )
 
-var _ = Describe("KafkaClusterWithContourIngressController", func() {
+var _ = Describe("KafkaClusterWithContourIngressController", Label("contour"), func() {
 	var (
 		count        uint64 = 0
 		namespace    string
@@ -51,7 +51,6 @@ var _ = Describe("KafkaClusterWithContourIngressController", func() {
 		}
 
 		kafkaCluster = createMinimalKafkaClusterCR(fmt.Sprintf("kafkacluster-%d", count), namespace)
-		kafkaCluster.Spec.ListenersConfig.ExternalListeners[0].HostnameOverride = "kafka.cluster.local"
 		kafkaCluster.Spec.IngressController = "contour"
 		contourListener := kafkaCluster.Spec.ListenersConfig.ExternalListeners[0]
 		contourListener.AccessMethod = corev1.ServiceTypeClusterIP
@@ -63,16 +62,21 @@ var _ = Describe("KafkaClusterWithContourIngressController", func() {
 
 			DefaultIngressConfig: "",
 			IngressConfig: map[string]v1beta1.IngressConfig{
-				"listener1-config1": {
+				"ingress1": {
+					IngressServiceSettings: v1beta1.IngressServiceSettings{
+						HostnameOverride: "kafka.cluster.local",
+					},
 					ContourIngressConfig: &v1beta1.ContourIngressConfig{
 						TLSSecretName:      "test-tls-secret",
-						BrokerFQDNTemplate: "broker-%d.kafka.cluster.local",
+						BrokerFQDNTemplate: "broker-%id.kafka.cluster.local",
 					},
 				},
 			},
 		}
 
 		kafkaCluster.Spec.ListenersConfig.ExternalListeners[0] = contourListener
+		kafkaCluster.Spec.Brokers[0].BrokerConfig = &v1beta1.BrokerConfig{BrokerIngressMapping: []string{"ingress1"}}
+		kafkaCluster.Spec.Brokers[1].BrokerConfig = &v1beta1.BrokerConfig{BrokerIngressMapping: []string{"ingress1"}}
 
 	})
 	JustBeforeEach(func(ctx SpecContext) {
@@ -94,10 +98,6 @@ var _ = Describe("KafkaClusterWithContourIngressController", func() {
 		kafkaCluster = nil
 	})
 	When("configuring Contour ingress expect broker ClusterIp svc", func() {
-		BeforeEach(func() {
-			kafkaCluster.Spec.Brokers[0].BrokerConfig = &v1beta1.BrokerConfig{BrokerIngressMapping: []string{"listener1"}}
-			kafkaCluster.Spec.Brokers[1].BrokerConfig = &v1beta1.BrokerConfig{BrokerIngressMapping: []string{"listener1"}}
-		})
 		It("should reconcile object properly", func(ctx SpecContext) {
 			// TODO: implement
 			expectContour(ctx, kafkaCluster)
@@ -106,18 +106,29 @@ var _ = Describe("KafkaClusterWithContourIngressController", func() {
 })
 
 func expectContourClusterIpAnycastSvc(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
-
-	var log logr.Logger
 	var svc corev1.Service
-	ingressConfigs, defaultControllerName, err := util.GetIngressConfigs(kafkaCluster.Spec, eListener)
-	Expect(err).NotTo(HaveOccurred())
+	var ingressConfigName string = "ingress1"
 
-	for name, ingressConfig := range ingressConfigs {
-		if !util.IsIngressConfigInUse(name, defaultControllerName, kafkaCluster, log) {
-			continue
-		}
-		serviceName := util.GenerateEnvoyResourceName(contourutils.ContourServiceName, contourutils.ContourServiceNameWithScope,
-			eListener, ingressConfig, name, kafkaCluster.GetName())
+	serviceName := fmt.Sprintf(contourutils.ContourServiceNameWithScope, eListener.Name, ingressConfigName, kafkaCluster.GetName())
+	Eventually(ctx, func() error {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: serviceName}, &svc)
+		return err
+	}).Should(Succeed())
+
+	Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+	Expect(svc.Spec.Ports).To(HaveLen(1))
+	Expect(svc.Spec.Ports[0].Port).To(Equal(*eListener.AnyCastPort))
+	Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(eListener.ContainerPort))))
+	Expect(svc.Spec.Ports[0].Name).To(Equal("tcp-all-broker"))
+	Expect(svc.Spec.Selector).To(HaveKeyWithValue("app", "kafka"))
+	Expect(svc.Spec.Selector).To(HaveKeyWithValue("kafka_cr", kafkaCluster.GetName()))
+}
+
+func expectContourClusterIpBrokerSvc(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
+	var svc corev1.Service
+
+	for _, broker := range kafkaCluster.Spec.Brokers {
+		serviceName := fmt.Sprintf(kafka.NodePortServiceTemplate, kafkaCluster.GetName(), broker.Id, eListener.Name)
 		Eventually(ctx, func() error {
 			err := k8sClient.Get(ctx, types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: serviceName}, &svc)
 			return err
@@ -126,48 +137,49 @@ func expectContourClusterIpAnycastSvc(ctx context.Context, kafkaCluster *v1beta1
 		Expect(svc.Spec.Ports).To(HaveLen(1))
 		Expect(svc.Spec.Ports[0].Port).To(Equal(*eListener.AnyCastPort))
 		Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(eListener.ContainerPort))))
-		Expect(svc.Spec.Ports[0].Name).To(Equal("tcp-all-broker"))
+		Expect(svc.Spec.Ports[0].Name).To(Equal(fmt.Sprintf("broker-%d", broker.Id)))
 		Expect(svc.Spec.Selector).To(HaveKeyWithValue("app", "kafka"))
+		Expect(svc.Spec.Selector).To(HaveKeyWithValue(v1beta1.BrokerIdLabelKey, fmt.Sprintf("%d", broker.Id)))
 		Expect(svc.Spec.Selector).To(HaveKeyWithValue("kafka_cr", kafkaCluster.GetName()))
 	}
 }
 
-func expectContourClusterIpBrokerSvc(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
-	var log logr.Logger
-	var svc corev1.Service
-	ingressConfigs, defaultControllerName, err := util.GetIngressConfigs(kafkaCluster.Spec, eListener)
-	Expect(err).NotTo(HaveOccurred())
-
-	for name, _ := range ingressConfigs {
-		if !util.IsIngressConfigInUse(name, defaultControllerName, kafkaCluster, log) {
-			continue
-		}
-		for _, broker := range kafkaCluster.Spec.Brokers {
-			serviceName := fmt.Sprintf(kafka.NodePortServiceTemplate, kafkaCluster.GetName(), broker.Id, eListener.Name)
-			Eventually(ctx, func() error {
-				err := k8sClient.Get(ctx, types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: serviceName}, &svc)
-				return err
-			}).Should(Succeed())
-			Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
-			Expect(svc.Spec.Ports).To(HaveLen(1))
-			Expect(svc.Spec.Ports[0].Port).To(Equal(*eListener.AnyCastPort))
-			Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromInt(int(eListener.ContainerPort))))
-			Expect(svc.Spec.Ports[0].Name).To(Equal(fmt.Sprintf("broker-%d", broker.Id)))
-			Expect(svc.Spec.Selector).To(HaveKeyWithValue("app", "kafka"))
-			Expect(svc.Spec.Selector).To(HaveKeyWithValue(v1beta1.BrokerIdLabelKey, fmt.Sprintf("%d", broker.Id)))
-			Expect(svc.Spec.Selector).To(HaveKeyWithValue("kafka_cr", kafkaCluster.GetName()))
-		}
-	}
+func expectContourAnycastHttpProxy(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
+	var proxy v1.HTTPProxy
+	var proxyName string = "kafka.cluster.local"
+	var ingressConfigName string = "ingress1"
+	serviceName := fmt.Sprintf(contourutils.ContourServiceNameWithScope, eListener.Name, ingressConfigName, kafkaCluster.GetName())
+	Eventually(ctx, func() error {
+		err := k8sClient.Get(ctx, types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: proxyName}, &proxy)
+		return err
+	}).Should(Succeed())
+	Expect(proxy.Spec.VirtualHost.Fqdn).To(Equal(proxyName))
+	Expect(proxy.Spec.TCPProxy.Services).To(HaveLen(1))
+	Expect(proxy.Spec.TCPProxy.Services[0].Name).To(Equal(serviceName))
+	Expect(proxy.Spec.TCPProxy.Services[0].Port).To(Equal(int(*eListener.AnyCastPort)))
 }
 
-func expectContourHttpProxy(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
-	Expect(BeTrue().Match(false))
+func expectContourBrokerHttpProxy(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster, eListener v1beta1.ExternalListenerConfig) {
+	var proxy v1.HTTPProxy
+	for _, broker := range kafkaCluster.Spec.Brokers {
+		proxyName := fmt.Sprintf("broker-%d.kafka.cluster.local", broker.Id)
+		serviceName := fmt.Sprintf(kafka.NodePortServiceTemplate, kafkaCluster.GetName(), broker.Id, eListener.Name)
+		Eventually(ctx, func() error {
+			err := k8sClient.Get(ctx, types.NamespacedName{Namespace: kafkaCluster.Namespace, Name: proxyName}, &proxy)
+			return err
+		}).Should(Succeed())
+		Expect(proxy.Spec.VirtualHost.Fqdn).To(Equal(proxyName))
+		Expect(proxy.Spec.TCPProxy.Services).To(HaveLen(1))
+		Expect(proxy.Spec.TCPProxy.Services[0].Name).To(Equal(serviceName))
+		Expect(proxy.Spec.TCPProxy.Services[0].Port).To(Equal(int(*eListener.AnyCastPort)))
+	}
 }
 
 func expectContour(ctx context.Context, kafkaCluster *v1beta1.KafkaCluster) {
 	for _, eListenerName := range kafkaCluster.Spec.ListenersConfig.ExternalListeners {
 		expectContourClusterIpAnycastSvc(ctx, kafkaCluster, eListenerName)
 		expectContourClusterIpBrokerSvc(ctx, kafkaCluster, eListenerName)
-		expectContourHttpProxy(ctx, kafkaCluster, eListenerName)
+		expectContourAnycastHttpProxy(ctx, kafkaCluster, eListenerName)
+		expectContourBrokerHttpProxy(ctx, kafkaCluster, eListenerName)
 	}
 }
