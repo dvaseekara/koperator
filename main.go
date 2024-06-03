@@ -124,9 +124,12 @@ func main() {
 	watchedNamespaces := make(map[string]cache.Config)
 	if namespaces != "" {
 		namespaceList = strings.Split(namespaces, ",")
-		for i := range namespaceList {
-			watchedNamespaces[strings.TrimSpace(namespaceList[i])] = cache.Config{}
-		}
+	} else {
+		namespaces = os.Getenv("WATCH_NAMESPACE")
+		namespaceList = strings.Split(namespaces, ",")
+	}
+	for i := range namespaceList {
+		watchedNamespaces[strings.TrimSpace(namespaceList[i])] = cache.Config{}
 	}
 
 	// hash the watched namespaces to allow for more than one operator deployment per namespace
