@@ -102,7 +102,6 @@ var _ = Describe("KafkaClusterWithContourIngressController", Label("contour"), f
 	})
 	When("configuring Contour ingress expect broker ClusterIp svc", func() {
 		It("should reconcile object properly", func(ctx SpecContext) {
-			// TODO: implement
 			expectContour(ctx, kafkaCluster)
 		})
 	})

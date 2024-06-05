@@ -51,7 +51,6 @@ import (
 	"github.com/banzaicloud/koperator/pkg/resources/nodeportexternalaccess"
 	"github.com/banzaicloud/koperator/pkg/util"
 
-	// TODO uncomment this
 	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 )
 
