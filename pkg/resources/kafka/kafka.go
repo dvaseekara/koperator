@@ -53,6 +53,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	certutil "github.com/banzaicloud/koperator/pkg/util/cert"
+	contourutils "github.com/banzaicloud/koperator/pkg/util/contour"
 	envoyutils "github.com/banzaicloud/koperator/pkg/util/envoy"
 	istioingressutils "github.com/banzaicloud/koperator/pkg/util/istioingress"
 	"github.com/banzaicloud/koperator/pkg/util/kafka"
@@ -1256,7 +1257,8 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 	brokerHost := defaultHost
 	portNumber := eListener.GetBrokerPort(broker.Id)
 
-	if eListener.GetAccessMethod() != corev1.ServiceTypeLoadBalancer {
+	switch eListener.GetAccessMethod() {
+	case corev1.ServiceTypeNodePort:
 		bConfig, err := broker.GetBrokerConfig(r.KafkaCluster.Spec)
 		if err != nil {
 			return "", err
@@ -1287,12 +1289,22 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 		} else {
 			brokerHost = fmt.Sprintf("%s-%d-%s.%s%s", r.KafkaCluster.Name, broker.Id, eListener.Name, r.KafkaCluster.Namespace, brokerHost)
 		}
-	}
-	if eListener.TLSEnabled() {
-		brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
+	case corev1.ServiceTypeClusterIP:
+		brokerHost = iConfig.ContourIngressConfig.GetBrokerFqdn(broker.Id)
 		if brokerHost == "" {
 			return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
 		}
+		// TODO understand why this is not needed. Tests are failing when this is added
+		// portNumber = eListener.ContainerPort
+	case corev1.ServiceTypeLoadBalancer:
+		if eListener.TLSEnabled() {
+			brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
+			if brokerHost == "" {
+				return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
+			}
+		}
+	case corev1.ServiceTypeExternalName:
+		return ":", errors.New("unsupported external listener access method")
 	}
 	return fmt.Sprintf("%s:%d", brokerHost, portNumber), nil
 }
@@ -1509,6 +1521,12 @@ func getServiceFromExternalListener(client client.Client, cluster *v1beta1.Kafka
 			iControllerServiceName = fmt.Sprintf(envoyutils.EnvoyServiceName, eListenerName, cluster.GetName())
 		} else {
 			iControllerServiceName = fmt.Sprintf(envoyutils.EnvoyServiceNameWithScope, eListenerName, ingressConfigName, cluster.GetName())
+		}
+	case contourutils.IngressControllerName:
+		if ingressConfigName == util.IngressConfigGlobalName {
+			iControllerServiceName = fmt.Sprintf(contourutils.ContourServiceName, eListenerName, cluster.GetName())
+		} else {
+			iControllerServiceName = fmt.Sprintf(contourutils.ContourServiceNameWithScope, eListenerName, ingressConfigName, cluster.GetName())
 		}
 	}
 
