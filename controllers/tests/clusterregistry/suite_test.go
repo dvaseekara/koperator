@@ -56,7 +56,6 @@ import (
 
 	istioclientv1beta1 "github.com/banzaicloud/istio-client-go/pkg/networking/v1beta1"
 	banzaiistiov1alpha1 "github.com/banzaicloud/istio-operator/api/v2/v1alpha1"
-	contour "github.com/projectcontour/contour/apis/projectcontour/v1"
 
 	banzaicloudv1alpha1 "github.com/banzaicloud/koperator/api/v1alpha1"
 	banzaicloudv1beta1 "github.com/banzaicloud/koperator/api/v1beta1"
@@ -97,7 +96,6 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "..", "config", "base", "crds"),
 			filepath.Join("..", "..", "..", "config", "test", "crd", "cert-manager"),
-			filepath.Join("..", "..", "..", "config", "test", "crd", "projectcontour"),
 			filepath.Join("..", "..", "..", "config", "test", "crd", "istio"),
 		},
 		ControlPlaneStopTimeout:  stopTimeout,
@@ -125,7 +123,6 @@ var _ = BeforeSuite(func() {
 	Expect(banzaicloudv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(banzaicloudv1beta1.AddToScheme(scheme)).To(Succeed())
 	Expect(istioclientv1beta1.AddToScheme(scheme)).To(Succeed())
-	Expect(contour.AddToScheme(scheme)).To(Succeed())
 
 	// +kubebuilder:scaffold:scheme
 
