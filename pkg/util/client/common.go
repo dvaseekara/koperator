@@ -40,15 +40,21 @@ func getContainerPortForInnerCom(internalListeners []v1beta1.InternalListenerCon
 		if val.UsedForKafkaAdminCommunication { // Optional override to return a port from a different listener. Needed if b2b communication is on an external listener and and you want the koperator to interact with kafka over a different port.
 			return val.ContainerPort
 		}
-		if val.UsedForInnerBrokerCommunication {
-			return val.ContainerPort
-		}
 	}
 
 	for _, val := range extListeners {
 		if val.UsedForKafkaAdminCommunication {
 			return val.ContainerPort
 		}
+	}
+
+	for _, val := range internalListeners {
+		if val.UsedForInnerBrokerCommunication {
+			return val.ContainerPort
+		}
+	}
+
+	for _, val := range extListeners {
 		if val.UsedForInnerBrokerCommunication {
 			return val.ContainerPort
 		}
