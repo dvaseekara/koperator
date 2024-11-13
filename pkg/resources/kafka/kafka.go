@@ -991,7 +991,7 @@ func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPo
 			if len(terminatingOrPendingPods) >= concurrentBrokerRestartsAllowed {
 				return errorfactory.New(errorfactory.ReconcileRollingUpgrade{}, errors.New(strconv.Itoa(concurrentBrokerRestartsAllowed)+" pod(s) is still terminating or creating"), "rolling upgrade in progress")
 			}
-			currentPodAz := r.getBrokerAz(currentPod)
+			currentPodAz, _ := r.getBrokerAz(currentPod)
 			if concurrentBrokerRestartsAllowed > 1 && r.existsTerminatingPodFromAnotherAz(currentPodAz, terminatingOrPendingPods) {
 				return errorfactory.New(errorfactory.ReconcileRollingUpgrade{}, errors.New("pod is still terminating or creating from another AZ"), "rolling upgrade in progress")
 			}
@@ -1101,7 +1101,7 @@ func (r *Reconciler) existsTerminatingPodFromAnotherAz(currentPodAz string, term
 		return true
 	}
 	for _, terminatingOrPendingPod := range terminatingOrPendingPods {
-		terminatingOrPendingPodAz, err := r.getBrokerAz(&terminatingOrPendingPod, r.kafkaBrokerAvailabilityZoneMap)
+		terminatingOrPendingPodAz, err := r.getBrokerAz(&terminatingOrPendingPod)
 		if err != nil || currentPodAz != terminatingOrPendingPodAz {
 			return true
 		}
@@ -1574,12 +1574,12 @@ func getPodsInTerminatingOrPendingState(items []corev1.Pod) []corev1.Pod {
 	return pods
 }
 
-func (r *Reconciler) getBrokerAz(pod *corev1.Pod) string {
+func (r *Reconciler) getBrokerAz(pod *corev1.Pod) (string, error) {
 	brokerId, err := strconv.ParseInt(pod.Labels[v1beta1.BrokerIdLabelKey], 10, 32)
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return r.kafkaBrokerAvailabilityZoneMap[int32(brokerId)]
+	return r.kafkaBrokerAvailabilityZoneMap[int32(brokerId)], nil
 }
 
 func getServiceFromExternalListener(client client.Client, cluster *v1beta1.KafkaCluster,
