@@ -125,7 +125,7 @@ func createMinimalKafkaClusterCR(name, namespace string) *v1beta1.KafkaCluster {
 				CCJMXExporterConfig: "custom_property: custom_value",
 			},
 			ReadOnlyConfig:       "cruise.control.metrics.topic.auto.create=true",
-			RollingUpgradeConfig: v1beta1.RollingUpgradeConfig{FailureThreshold: 1, ConcurrentBrokerRestartsAllowed: 1},
+			RollingUpgradeConfig: v1beta1.RollingUpgradeConfig{FailureThreshold: 1, ConcurrentBrokerRestartCountPerRack: 1},
 		},
 	}
 }

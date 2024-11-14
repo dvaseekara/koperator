@@ -19,11 +19,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
+	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/banzaicloud/koperator/pkg/scale"
 
@@ -371,11 +370,8 @@ func TestCreateCCOperation(t *testing.T) {
 		},
 	}
 
-	mockCtrl := gomock.NewController(t)
-
 	for _, testCase := range testCases {
-		mockClient := mocks.NewMockClient(mockCtrl)
-		mockSubResourceClient := mocks.NewMockSubResourceClient(mockCtrl)
+		mockClient := new(mocks.Client)
 		scheme := runtime.NewScheme()
 		_ = v1beta1.AddToScheme(scheme)
 		_ = corev1.AddToScheme(scheme)
@@ -393,17 +389,17 @@ func TestCreateCCOperation(t *testing.T) {
 
 		// Mock the Create call and capture the operation
 		var createdOperation *banzaiv1alpha1.CruiseControlOperation
-		mockClient.EXPECT().Create(ctx, gomock.AssignableToTypeOf(&banzaiv1alpha1.CruiseControlOperation{})).Do(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) {
-			createdOperation = obj.(*banzaiv1alpha1.CruiseControlOperation)
+		mockClient.On("Create", ctx, mock.IsType(&banzaiv1alpha1.CruiseControlOperation{})).Run(func(args mock.Arguments) {
+			createdOperation = args.Get(1).(*banzaiv1alpha1.CruiseControlOperation)
 			createdOperation.ObjectMeta.Name = "generated-name"
 		}).Return(nil)
 
 		// Mock the Status call
-		mockClient.EXPECT().Status().Return(mockSubResourceClient)
+		mockClient.On("Status").Return(mockClient)
 
 		// Mock the Update call
-		mockSubResourceClient.EXPECT().Update(ctx, gomock.AssignableToTypeOf(&banzaiv1alpha1.CruiseControlOperation{})).Do(func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) {
-			arg := obj.(*banzaiv1alpha1.CruiseControlOperation)
+		mockClient.On("Update", ctx, mock.IsType(&banzaiv1alpha1.CruiseControlOperation{})).Run(func(args mock.Arguments) {
+			arg := args.Get(1).(*banzaiv1alpha1.CruiseControlOperation)
 			createdOperation.Status = arg.Status
 		}).Return(nil)
 

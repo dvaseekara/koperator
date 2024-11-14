@@ -21841,9 +21841,10 @@ spec:
                 description: RollingUpgradeConfig defines the desired config of the
                   RollingUpgrade
                 properties:
-                  concurrentBrokerRestartsAllowed:
-                    description: ConcurrentBrokerRestartsAllowed controls how many
-                      brokers can be restarted in parallel during a rolling upgrade.
+                  concurrentBrokerRestartCountPerRack:
+                    default: 1
+                    description: ConcurrentBrokerRestartCountPerRack controls how
+                      many brokers can be restarted in parallel during a rolling upgrade.
                       If it is set to a value greater than 1, the operator will restart
                       up to that amount of brokers in parallel, if the brokers are
                       within the same rack (as specified by "broker.rack" in broker
@@ -21854,7 +21855,8 @@ spec:
                       N is the number of racks used. This is a safe way to speed up
                       the rolling upgrade. Note that for the rack distribution explained
                       above, Cruise Control requires `com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareDistributionGoal`
-                      to be configured.
+                      to be configured. Default value is 1.
+                    minimum: 1
                     type: integer
                   failureThreshold:
                     description: FailureThreshold controls how many failures the cluster

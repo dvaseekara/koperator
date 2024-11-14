@@ -13,20 +13,21 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/banzaicloud/koperator/api v0.28.8
 	github.com/banzaicloud/koperator/properties v0.4.1
-	github.com/cert-manager/cert-manager v1.13.2
-	github.com/cisco-open/cluster-registry-controller/api v0.2.12
-	github.com/envoyproxy/go-control-plane v0.11.1
-	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344
-	github.com/go-logr/logr v1.3.0
-	github.com/onsi/ginkgo/v2 v2.13.1
-	github.com/onsi/gomega v1.30.0
-	github.com/pavlo-v-chernykh/keystore-go/v4 v4.5.0
-	github.com/prometheus/common v0.45.0
-	github.com/stretchr/testify v1.8.4
-	go.uber.org/mock v0.4.0
-	go.uber.org/zap v1.26.0
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	google.golang.org/protobuf v1.31.0
+	github.com/cert-manager/cert-manager v1.11.2
+	github.com/cisco-open/cluster-registry-controller/api v0.2.5
+	github.com/envoyproxy/go-control-plane v0.10.3
+	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/go-logr/logr v1.2.4
+	github.com/imdario/mergo v0.3.13
+	github.com/onsi/ginkgo/v2 v2.9.2
+	github.com/onsi/gomega v1.27.6
+	github.com/pavlo-v-chernykh/keystore-go/v4 v4.4.1
+	github.com/prometheus/common v0.37.0
+	github.com/stretchr/testify v1.8.1
+	go.uber.org/mock v0.2.0
+	go.uber.org/zap v1.24.0
+	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea
+	google.golang.org/protobuf v1.28.1
 	gopkg.in/inf.v0 v0.9.1
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.28.4
@@ -44,9 +45,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230911183012-2d3300fd4832 // indirect
+	golang.org/x/tools v0.7.0 // indirect
 )
 
 require (
@@ -113,15 +112,16 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/wayneashleyberry/terminal-dimensions v1.1.0 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.19.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/oauth2 v0.12.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
-	golang.org/x/term v0.17.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/wayneashleyberry/terminal-dimensions v1.0.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/oauth2 v0.4.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/term v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -146,5 +146,3 @@ replace (
 	github.com/gogo/protobuf => github.com/waynz0r/protobuf v1.3.3-0.20210811122234-64636cae0910
 	github.com/golang/protobuf => github.com/luciferinlove/protobuf v1.5.2-bzc
 )
-
-// exclude github.com/imdario/mergo v0.3.6
