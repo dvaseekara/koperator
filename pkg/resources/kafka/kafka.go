@@ -206,7 +206,7 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 
 	log.V(1).Info("Reconciling")
 
-	log.Info("broker rack map", "kafkaBrokerAvailabilityZoneMap", r.kafkaBrokerAvailabilityZoneMap)
+	log.Info("broker rack map", "kafkaBrokerAvailabilityZoneMap", getBrokerAzMap(r.KafkaCluster))
 
 	ctx := context.Background()
 	if err := k8sutil.UpdateBrokerConfigurationBackup(r.Client, r.KafkaCluster); err != nil {

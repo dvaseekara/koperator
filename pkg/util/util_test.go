@@ -818,6 +818,9 @@ func TestFilterControllerOnlyNodes(t *testing.T) {
 			}
 			require.Equal(t, tc.expectedIDsAfterFiltering, filteredIDs)
 		})
+	}
+}
+
 func TestConstructEListenerLabelName(t *testing.T) {
 	tests := []struct {
 		ingressConfigName string

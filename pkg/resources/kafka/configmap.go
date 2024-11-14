@@ -39,7 +39,7 @@ import (
 	properties "github.com/banzaicloud/koperator/properties/pkg"
 )
 
-func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, id int32, quorumVoters []string,
+func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, broker v1beta1.Broker, quorumVoters []string,
 	extListenerStatuses, intListenerStatuses, controllerIntListenerStatuses map[string]v1beta1.ListenerStatusList,
 	serverPasses map[string]string, clientPass string, superUsers []string, log logr.Logger) *properties.Properties {
 	config := properties.NewProperties()
@@ -49,21 +49,21 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, id int32
 		log.Error(err, "getting Kafka bootstrap servers for Cruise Control failed")
 	}
 	// Add listener configuration
-	listenerConf := generateListenerSpecificConfig(&r.KafkaCluster.Spec, serverPasses, log)
+	listenerConf, _ := generateListenerSpecificConfig(&r.KafkaCluster.Spec, serverPasses, log)
 	config.Merge(listenerConf)
 
 	// Cruise Control metrics reporter configuration
-	configCCMetricsReporter(r.KafkaCluster, config, clientPass, bootstrapServers, log)
+	r.configCCMetricsReporter(broker, config, clientPass, bootstrapServers, log)
 
 	// Kafka Broker configurations
 	if r.KafkaCluster.Spec.KRaftMode {
-		configureBrokerKRaftMode(bConfig, id, r.KafkaCluster, config, quorumVoters, serverPasses, extListenerStatuses, intListenerStatuses, log)
+		configureBrokerKRaftMode(bConfig, broker.Id, r.KafkaCluster, config, quorumVoters, serverPasses, extListenerStatuses, intListenerStatuses, log)
 	} else {
-		configureBrokerZKMode(id, r.KafkaCluster, config, serverPasses, extListenerStatuses, intListenerStatuses, controllerIntListenerStatuses, log)
+		configureBrokerZKMode(broker.Id, r.KafkaCluster, config, serverPasses, extListenerStatuses, intListenerStatuses, controllerIntListenerStatuses, log)
 	}
 
 	// This logic prevents the removal of the mountPath from the broker configmap
-	brokerConfigMapName := fmt.Sprintf(brokerConfigTemplate+"-%d", r.KafkaCluster.Name, id)
+	brokerConfigMapName := fmt.Sprintf(brokerConfigTemplate+"-%d", r.KafkaCluster.Name, broker.Id)
 	var brokerConfigMapOld v1.ConfigMap
 	err = r.Client.Get(context.Background(), client.ObjectKey{Name: brokerConfigMapName, Namespace: r.KafkaCluster.GetNamespace()}, &brokerConfigMapOld)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -72,7 +72,7 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, id int32
 
 	mountPathsOld, err := getMountPathsFromBrokerConfigMap(&brokerConfigMapOld)
 	if err != nil {
-		log.Error(err, "could not get mountPaths from broker configmap", v1beta1.BrokerIdLabelKey, id)
+		log.Error(err, "could not get mountPaths from broker configmap", v1beta1.BrokerIdLabelKey, broker.Id)
 	}
 
 	mountPathsNew := generateStorageConfig(bConfig.StorageConfigs)
@@ -80,7 +80,7 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, id int32
 
 	if isMountPathRemoved {
 		log.Error(errors.New("removed storage is found in the KafkaCluster CR"),
-			"removing storage from broker is not supported", v1beta1.BrokerIdLabelKey, id, "mountPaths",
+			"removing storage from broker is not supported", v1beta1.BrokerIdLabelKey, broker.Id, "mountPaths",
 			mountPathsOld, "mountPaths in kafkaCluster CR ", mountPathsNew)
 	}
 
@@ -100,10 +100,10 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, id int32
 	return config
 }
 
-func configCCMetricsReporter(kafkaCluster *v1beta1.KafkaCluster, config *properties.Properties, clientPass, bootstrapServers string, log logr.Logger) {
+func (r *Reconciler) configCCMetricsReporter(broker v1beta1.Broker, config *properties.Properties, clientPass, bootstrapServers string, log logr.Logger) {
 	// Add Cruise Control Metrics Reporter SSL configuration
-	if util.IsSSLEnabledForInternalCommunication(kafkaCluster.Spec.ListenersConfig.InternalListeners) {
-		if !kafkaCluster.Spec.IsClientSSLSecretPresent() {
+	if util.IsSSLEnabledForInternalCommunication(r.KafkaCluster.Spec.ListenersConfig.InternalListeners) {
+		if !r.KafkaCluster.Spec.IsClientSSLSecretPresent() {
 			log.Error(errors.New("cruise control metrics reporter needs ssl but client certificate hasn't specified"), "")
 		}
 
@@ -127,7 +127,7 @@ func configCCMetricsReporter(kafkaCluster *v1beta1.KafkaCluster, config *propert
 
 	// Add Cruise Control Metrics Reporter configuration.
 	// When "security.inter.broker.protocol" (e.g. inter broker communication is secure) is configured, the operator disables the reporter.
-	_, isSecurityInterBrokerProtocolConfigured := getBrokerReadOnlyConfig(id, r.KafkaCluster, log).Get(kafkautils.KafkaConfigSecurityInterBrokerProtocol)
+	_, isSecurityInterBrokerProtocolConfigured := getBrokerReadOnlyConfig(broker, r.KafkaCluster, log).Get(kafkautils.KafkaConfigSecurityInterBrokerProtocol)
 	if !isSecurityInterBrokerProtocolConfigured {
 		if err := config.Set(kafkautils.CruiseControlConfigMetricsReporters, kafkautils.CruiseControlConfigMetricsReportersVal); err != nil {
 			log.Error(err, fmt.Sprintf(kafkautils.BrokerConfigErrorMsgTemplate, kafkautils.CruiseControlConfigMetricsReporters))
@@ -175,7 +175,7 @@ func configureBrokerKRaftMode(bConfig *v1beta1.BrokerConfig, brokerID int32, kaf
 	}
 
 	// Add listener configuration
-	listenerConf, listenerConfig := generateListenerSpecificConfig(&kafkaCluster.Spec.ListenersConfig, serverPasses, log)
+	listenerConf, listenerConfig := generateListenerSpecificConfig(&kafkaCluster.Spec, serverPasses, log)
 	config.Merge(listenerConf)
 
 	var advertisedListenerConf []string
@@ -220,7 +220,7 @@ func configureBrokerZKMode(brokerID int32, kafkaCluster *v1beta1.KafkaCluster, c
 	}
 
 	// Add listener configuration
-	listenerConf, _ := generateListenerSpecificConfig(&kafkaCluster.Spec.ListenersConfig, serverPasses, log)
+	listenerConf, _ := generateListenerSpecificConfig(&kafkaCluster.Spec, serverPasses, log)
 	config.Merge(listenerConf)
 
 	// Add advertised listener configuration
@@ -366,10 +366,13 @@ func generateControlPlaneListener(iListeners []v1beta1.InternalListenerConfig) s
 	return controlPlaneListener
 }
 
-func generateListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map[string]string, log logr.Logger) (*properties.Properties, []string) {
+func generateListenerSpecificConfig(kcs *v1beta1.KafkaClusterSpec, serverPasses map[string]string, log logr.Logger) (*properties.Properties, []string) {
 	config := properties.NewProperties()
 
-	interBrokerListenerName, securityProtocolMapConfig, listenerConfig, internalListenerSSLConfig, externalListenerSSLConfig := getListenerSpecificConfig(l, serverPasses, log)
+	l := kcs.ListenersConfig
+	r := kcs.ReadOnlyConfig
+
+	interBrokerListenerName, securityProtocolMapConfig, listenerConfig, internalListenerSSLConfig, externalListenerSSLConfig := getListenerSpecificConfig(&l, serverPasses, log)
 
 	for k, v := range internalListenerSSLConfig {
 		if err := config.Set(k, v); err != nil {
@@ -408,8 +411,6 @@ func getListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map[stri
 		internalListenerSSLConfig map[string]string
 		externalListenerSSLConfig map[string]string
 	)
-	l := kcs.ListenersConfig
-	r := kcs.ReadOnlyConfig
 
 	for _, iListener := range l.InternalListeners {
 		if iListener.UsedForInnerBrokerCommunication {
@@ -515,7 +516,7 @@ func (r Reconciler) generateBrokerConfig(broker v1beta1.Broker, brokerConfig *v1
 	finalBrokerConfig := getBrokerReadOnlyConfig(broker, r.KafkaCluster, log)
 
 	// Get operator generated configuration
-	opGenConf := r.getConfigProperties(brokerConfig, broker.Id, quorumVoters, extListenerStatuses, intListenerStatuses,
+	opGenConf := r.getConfigProperties(brokerConfig, broker, quorumVoters, extListenerStatuses, intListenerStatuses,
 		controllerIntListenerStatuses, serverPasses, clientPass, superUsers, log)
 
 	// Merge operator generated configuration to the final one

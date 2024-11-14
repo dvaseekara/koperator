@@ -144,11 +144,7 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		LeaderElection:   enableLeaderElection,
-<<<<<<< HEAD
-		LeaderElectionID: "controller-leader-election-helper",
-=======
 		LeaderElectionID: leaderElectionID,
->>>>>>> master
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Port:    webhookServerPort,
 			CertDir: webhookCertDir,
