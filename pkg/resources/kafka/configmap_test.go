@@ -621,8 +621,8 @@ cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.clu
 cruise.control.metrics.reporter.kubernetes.mode=true
 listener.security.protocol.map=INTERNAL:PLAINTEXT
 listeners=INTERNAL://:9092
-zookeeper.connect=example.zk:2181/
-security.inter.broker.protocol=SASL_SSL`,
+security.inter.broker.protocol=SASL_SSL
+zookeeper.connect=example.zk:2181/`,
 		},
 	}
 
@@ -634,6 +634,7 @@ security.inter.broker.protocol=SASL_SSL`,
 
 		t.Run(test.testName, func(t *testing.T) {
 			mockClient := mocks.NewMockClient(mockCtrl)
+			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			r := Reconciler{
 				Reconciler: resources.Reconciler{
 					Client: mockClient,
