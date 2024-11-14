@@ -48,6 +48,9 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, id int32
 	if err != nil {
 		log.Error(err, "getting Kafka bootstrap servers for Cruise Control failed")
 	}
+	// Add listener configuration
+	listenerConf := generateListenerSpecificConfig(&r.KafkaCluster.Spec, serverPasses, log)
+	config.Merge(listenerConf)
 
 	// Cruise Control metrics reporter configuration
 	configCCMetricsReporter(r.KafkaCluster, config, clientPass, bootstrapServers, log)
@@ -122,9 +125,17 @@ func configCCMetricsReporter(kafkaCluster *v1beta1.KafkaCluster, config *propert
 		}
 	}
 
-	// Add Cruise Control Metrics Reporter configuration
-	if err := config.Set(kafkautils.CruiseControlConfigMetricsReporters, kafkautils.CruiseControlConfigMetricsReportersVal); err != nil {
-		log.Error(err, fmt.Sprintf(kafkautils.BrokerConfigErrorMsgTemplate, kafkautils.CruiseControlConfigMetricsReporters))
+	// Add Cruise Control Metrics Reporter configuration.
+	// When "security.inter.broker.protocol" (e.g. inter broker communication is secure) is configured, the operator disables the reporter.
+	_, isSecurityInterBrokerProtocolConfigured := getBrokerReadOnlyConfig(id, r.KafkaCluster, log).Get(kafkautils.KafkaConfigSecurityInterBrokerProtocol)
+	if !isSecurityInterBrokerProtocolConfigured {
+		if err := config.Set(kafkautils.CruiseControlConfigMetricsReporters, kafkautils.CruiseControlConfigMetricsReportersVal); err != nil {
+			log.Error(err, fmt.Sprintf(kafkautils.BrokerConfigErrorMsgTemplate, kafkautils.CruiseControlConfigMetricsReporters))
+		}
+	}
+	bootstrapServers, err := kafkautils.GetBootstrapServersService(r.KafkaCluster)
+	if err != nil {
+		log.Error(err, "getting Kafka bootstrap servers for Cruise Control failed")
 	}
 	if err := config.Set(kafkautils.CruiseControlConfigMetricsReportersBootstrapServers, bootstrapServers); err != nil {
 		log.Error(err, fmt.Sprintf(kafkautils.BrokerConfigErrorMsgTemplate, kafkautils.CruiseControlConfigMetricsReportersBootstrapServers))
@@ -274,7 +285,7 @@ func (r *Reconciler) configMap(broker v1beta1.Broker, brokerConfig *v1beta1.Brok
 	serverPasses map[string]string, clientPass string, superUsers []string, log logr.Logger) *corev1.ConfigMap {
 	brokerConf := &corev1.ConfigMap{
 		ObjectMeta: templates.ObjectMeta(
-			fmt.Sprintf(brokerConfigTemplate+"-%d", r.KafkaCluster.Name, broker.Id),
+			fmt.Sprintf(brokerConfigTemplate+"-%d", r.KafkaCluster.Name, broker.Id), //nolint:goconst
 			apiutil.MergeLabels(
 				apiutil.LabelsForKafka(r.KafkaCluster.Name),
 				map[string]string{v1beta1.BrokerIdLabelKey: fmt.Sprintf("%d", broker.Id)},
@@ -375,9 +386,13 @@ func generateListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map
 	if err := config.Set(kafkautils.KafkaConfigListenerSecurityProtocolMap, securityProtocolMapConfig); err != nil {
 		log.Error(err, fmt.Sprintf("setting '%s' parameter in broker configuration resulted an error", kafkautils.KafkaConfigListenerSecurityProtocolMap))
 	}
-	if err := config.Set(kafkautils.KafkaConfigInterBrokerListenerName, interBrokerListenerName); err != nil {
-		log.Error(err, fmt.Sprintf("setting '%s' parameter in broker configuration resulted an error", kafkautils.KafkaConfigInterBrokerListenerName))
+
+	if !strings.Contains(r, kafkautils.KafkaConfigSecurityInterBrokerProtocol+"=") {
+		if err := config.Set(kafkautils.KafkaConfigInterBrokerListenerName, interBrokerListenerName); err != nil {
+			log.Error(err, fmt.Sprintf("setting '%s' parameter in broker configuration resulted an error", kafkautils.KafkaConfigInterBrokerListenerName))
+		}
 	}
+
 	if err := config.Set(kafkautils.KafkaConfigListeners, listenerConfig); err != nil {
 		log.Error(err, fmt.Sprintf("setting '%s' parameter in broker configuration resulted an error", kafkautils.KafkaConfigListeners))
 	}
@@ -393,6 +408,8 @@ func getListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map[stri
 		internalListenerSSLConfig map[string]string
 		externalListenerSSLConfig map[string]string
 	)
+	l := kcs.ListenersConfig
+	r := kcs.ReadOnlyConfig
 
 	for _, iListener := range l.InternalListeners {
 		if iListener.UsedForInnerBrokerCommunication {

@@ -23,7 +23,9 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
+	ccTypes "github.com/banzaicloud/go-cruise-control/pkg/types"
 	"github.com/go-logr/logr"
+	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +53,7 @@ import (
 	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 	certutil "github.com/banzaicloud/koperator/pkg/util/cert"
+	contourutils "github.com/banzaicloud/koperator/pkg/util/contour"
 	envoyutils "github.com/banzaicloud/koperator/pkg/util/envoy"
 	istioingressutils "github.com/banzaicloud/koperator/pkg/util/istioingress"
 	"github.com/banzaicloud/koperator/pkg/util/kafka"
@@ -899,6 +902,7 @@ func (r *Reconciler) updateStatusWithDockerImageAndVersion(brokerId int32, broke
 	return nil
 }
 
+//gocyclo:ignore
 func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPod *corev1.Pod, desiredType reflect.Type) error {
 	// Since toleration does not support patchStrategy:"merge,retainKeys",
 	// we need to add all toleration from the current pod if the toleration is set in the CR
@@ -1036,6 +1040,52 @@ func (r *Reconciler) handleRollingUpgrade(log logr.Logger, desiredPod, currentPo
 	}
 	log.Info("broker pod deleted", "pod", currentPod.GetName(), v1beta1.BrokerIdLabelKey, currentPod.Labels[v1beta1.BrokerIdLabelKey])
 	return nil
+}
+
+func (r *Reconciler) checkCCRackAwareDistributionGoal() error {
+	cruiseControlURL := scale.CruiseControlURLFromKafkaCluster(r.KafkaCluster)
+	cc, err := r.CruiseControlScalerFactory(context.TODO(), r.KafkaCluster)
+	if err != nil {
+		return errorfactory.New(errorfactory.CruiseControlNotReady{}, err, "failed to initialize Cruise Control", "cruise control url", cruiseControlURL)
+	}
+	status, err := cc.Status(context.Background())
+	if err != nil {
+		return errorfactory.New(errorfactory.CruiseControlNotReady{}, errors.New("failed to get status from Cruise Control"), "rolling upgrade in progress")
+	}
+	if !slices.Contains(status.State.AnalyzerState.ReadyGoals, ccTypes.RackAwareDistributionGoal) {
+		return errorfactory.New(errorfactory.ReconcileRollingUpgrade{}, errors.New("RackAwareDistributionGoal is not ready"), "rolling upgrade in progress")
+	}
+	for _, anomaly := range status.State.AnomalyDetectorState.RecentGoalViolations {
+		if slices.Contains(anomaly.FixableViolatedGoals, ccTypes.RackAwareDistributionGoal) || slices.Contains(anomaly.UnfixableViolatedGoals, ccTypes.RackAwareDistributionGoal) {
+			return errorfactory.New(errorfactory.ReconcileRollingUpgrade{}, errors.New("RackAwareDistributionGoal is violated"), "rolling upgrade in progress")
+		}
+	}
+	return nil
+}
+
+func (r *Reconciler) existsFailedBrokerFromAnotherRack(currentPodAz string, impactedReplicas map[int32]struct{}, kafkaBrokerAvailabilityZoneMap map[int32]string) bool {
+	if currentPodAz == "" && len(impactedReplicas) > 0 {
+		return true
+	}
+	for brokerWithFailure := range impactedReplicas {
+		if currentPodAz != kafkaBrokerAvailabilityZoneMap[brokerWithFailure] {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Reconciler) existsTerminatingPodFromAnotherAz(currentPodAz string, terminatingOrPendingPods []corev1.Pod, kafkaBrokerAvailabilityZoneMap map[int32]string) bool {
+	if currentPodAz == "" && len(terminatingOrPendingPods) > 0 {
+		return true
+	}
+	for _, terminatingOrPendingPod := range terminatingOrPendingPods {
+		terminatingOrPendingPodAz, err := r.getBrokerAz(&terminatingOrPendingPod, kafkaBrokerAvailabilityZoneMap)
+		if err != nil || currentPodAz != terminatingOrPendingPodAz {
+			return true
+		}
+	}
+	return false
 }
 
 // Checks for match between pod labels and TaintedBrokersSelector
@@ -1261,7 +1311,8 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 	brokerHost := defaultHost
 	portNumber := eListener.GetBrokerPort(broker.Id)
 
-	if eListener.GetAccessMethod() != corev1.ServiceTypeLoadBalancer {
+	switch eListener.GetAccessMethod() {
+	case corev1.ServiceTypeNodePort:
 		bConfig, err := broker.GetBrokerConfig(r.KafkaCluster.Spec)
 		if err != nil {
 			return "", err
@@ -1292,12 +1343,22 @@ func (r *Reconciler) getBrokerHost(log logr.Logger, defaultHost string, broker v
 		} else {
 			brokerHost = fmt.Sprintf("%s-%d-%s.%s%s", r.KafkaCluster.Name, broker.Id, eListener.Name, r.KafkaCluster.Namespace, brokerHost)
 		}
-	}
-	if eListener.TLSEnabled() {
-		brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
+	case corev1.ServiceTypeClusterIP:
+		brokerHost = iConfig.ContourIngressConfig.GetBrokerFqdn(broker.Id)
 		if brokerHost == "" {
 			return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
 		}
+		// TODO understand why this is not needed. Tests are failing when this is added
+		// portNumber = eListener.ContainerPort
+	case corev1.ServiceTypeLoadBalancer:
+		if eListener.TLSEnabled() {
+			brokerHost = iConfig.EnvoyConfig.GetBrokerHostname(broker.Id)
+			if brokerHost == "" {
+				return "", errors.New("brokerHostnameTemplate is not set in the ingress service settings")
+			}
+		}
+	case corev1.ServiceTypeExternalName:
+		return ":", errors.New("unsupported external listener access method")
 	}
 	return fmt.Sprintf("%s:%d", brokerHost, portNumber), nil
 }
@@ -1508,14 +1569,26 @@ func getServiceFromExternalListener(client client.Client, cluster *v1beta1.Kafka
 	case istioingressutils.IngressControllerName:
 		if ingressConfigName == util.IngressConfigGlobalName {
 			iControllerServiceName = fmt.Sprintf(istioingressutils.MeshGatewayNameTemplate, eListenerName, cluster.GetName())
+			iControllerServiceName = strings.ReplaceAll(iControllerServiceName, "_", "-")
 		} else {
 			iControllerServiceName = fmt.Sprintf(istioingressutils.MeshGatewayNameTemplateWithScope, eListenerName, ingressConfigName, cluster.GetName())
+			iControllerServiceName = strings.ReplaceAll(iControllerServiceName, "_", "-")
 		}
 	case envoyutils.IngressControllerName:
 		if ingressConfigName == util.IngressConfigGlobalName {
 			iControllerServiceName = fmt.Sprintf(envoyutils.EnvoyServiceName, eListenerName, cluster.GetName())
+			iControllerServiceName = strings.ReplaceAll(iControllerServiceName, "_", "-")
 		} else {
 			iControllerServiceName = fmt.Sprintf(envoyutils.EnvoyServiceNameWithScope, eListenerName, ingressConfigName, cluster.GetName())
+			iControllerServiceName = strings.ReplaceAll(iControllerServiceName, "_", "-")
+		}
+	case contourutils.IngressControllerName:
+		if ingressConfigName == util.IngressConfigGlobalName {
+			iControllerServiceName = fmt.Sprintf(contourutils.ContourServiceName, eListenerName, cluster.GetName())
+			iControllerServiceName = strings.ReplaceAll(iControllerServiceName, "_", "-")
+		} else {
+			iControllerServiceName = fmt.Sprintf(contourutils.ContourServiceNameWithScope, eListenerName, ingressConfigName, cluster.GetName())
+			iControllerServiceName = strings.ReplaceAll(iControllerServiceName, "_", "-")
 		}
 	}
 
@@ -1591,7 +1664,7 @@ func generateServicePortForIListeners(listeners []v1beta1.InternalListenerConfig
 	var usedPorts []corev1.ServicePort
 	for _, iListener := range listeners {
 		usedPorts = append(usedPorts, corev1.ServicePort{
-			Name:       strings.ReplaceAll(iListener.GetListenerServiceName(), "_", ""),
+			Name:       strings.ReplaceAll(iListener.GetListenerServiceName(), "_", "-"),
 			Port:       iListener.ContainerPort,
 			TargetPort: intstr.FromInt(int(iListener.ContainerPort)),
 			Protocol:   corev1.ProtocolTCP,
@@ -1604,7 +1677,7 @@ func generateServicePortForEListeners(listeners []v1beta1.ExternalListenerConfig
 	var usedPorts []corev1.ServicePort
 	for _, eListener := range listeners {
 		usedPorts = append(usedPorts, corev1.ServicePort{
-			Name:       eListener.GetListenerServiceName(),
+			Name:       strings.ReplaceAll(eListener.GetListenerServiceName(), "_", "-"),
 			Protocol:   corev1.ProtocolTCP,
 			Port:       eListener.ContainerPort,
 			TargetPort: intstr.FromInt(int(eListener.ContainerPort)),
