@@ -45,9 +45,4 @@ runs:
       chmod 600 $kubeconfig_path
       echo "kubeconfig=$(echo $kubeconfig_path)" >> $GITHUB_OUTPUT
       echo "Install cloud-provider-kind"
-      # go install sigs.k8s.io/cloud-provider-kind@latest
-      # kubectl label node e2e-kind-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
-node/e2e-kind-control-plane unlabeled
-      echo "Run Cloud Provider Kind to enable LoadBalancer"
-      # ~/go/bin/cloud-provider-kind
     shell: bash
