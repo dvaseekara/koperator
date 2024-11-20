@@ -45,4 +45,5 @@ runs:
       chmod 600 $kubeconfig_path
       echo "kubeconfig=$(echo $kubeconfig_path)" >> $GITHUB_OUTPUT
       echo "Install cloud-provider-kind"
+      go install sigs.k8s.io/cloud-provider-kind@latest
     shell: bash
