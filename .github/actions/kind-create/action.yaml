@@ -47,4 +47,5 @@ runs:
       echo "Install cloud-provider-kind"
       go install sigs.k8s.io/cloud-provider-kind@latest
       kubectl label node e2e-kind-control-plane node.kubernetes.io/exclude-from-external-load-balancers- node/e2e-kind-control-plane unlabeled
+      ~/go/bin/cloud-provider-kind
     shell: bash
