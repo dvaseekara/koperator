@@ -44,11 +44,11 @@ runs:
       kind get kubeconfig --name ${{ inputs.kind_cluster_name }} > $kubeconfig_path
       chmod 600 $kubeconfig_path
       echo "kubeconfig=$(echo $kubeconfig_path)" >> $GITHUB_OUTPUT
-    run: |
-      echo "Install cloud-provider-kind"
-      go install sigs.k8s.io/cloud-provider-kind@latest
-      kubectl label node e2e-kind-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
-node/e2e-kind-control-plane unlabeled
-      echo "Run Cloud Provider Kind to enable LoadBalancer"
-      ~/go/bin/cloud-provider-kind
+#     run: |
+#       echo "Install cloud-provider-kind"
+#       go install sigs.k8s.io/cloud-provider-kind@latest
+#       kubectl label node e2e-kind-control-plane node.kubernetes.io/exclude-from-external-load-balancers-
+# node/e2e-kind-control-plane unlabeled
+#       echo "Run Cloud Provider Kind to enable LoadBalancer"
+#       ~/go/bin/cloud-provider-kind
     shell: bash
