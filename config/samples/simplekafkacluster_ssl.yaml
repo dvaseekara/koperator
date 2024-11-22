@@ -59,7 +59,7 @@ spec:
         # sslClientAuth defaults to be "required" for two-way SSL authentication, possible values are: "required", "requested", and "none"
         # sslClientAuth: "requested"
     sslSecrets:
-      tlsSecretName: "kafka-ca-certs"
+      tlsSecretName: "kafka-ca-certificate"
       create: true
   cruiseControlConfig:
     # podSecurityContext:

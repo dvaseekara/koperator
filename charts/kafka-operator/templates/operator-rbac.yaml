@@ -45,6 +45,12 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxy
+  verbs:
+  - '*'
+- apiGroups:
   - ""
   resources:
   - events

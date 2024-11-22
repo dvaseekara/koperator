@@ -11,8 +11,8 @@ replicaCount: 1
 operator:
   annotations: {}
   image:
-    repository: ghcr.io/banzaicloud/kafka-operator
-    tag: ""
+    repository: koperator_e2e_test
+    tag: "latest"
     pullPolicy: IfNotPresent
   # In constrained environments where operator cannot
   # be granted cluster level roles, users can configure
@@ -50,7 +50,7 @@ certManager:
   enabled: false
   # namespace field specifies the Cert-manager's Cluster Resource Namespace.
   # https://cert-manager.io/docs/configuration/
-  namespace: "cert-manager"
+  namespace: "kafka"
 
 certSigning:
   enabled: true

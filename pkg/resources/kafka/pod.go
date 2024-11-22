@@ -208,7 +208,7 @@ func getInitContainers(brokerConfig *v1beta1.BrokerConfig, kafkaClusterSpec v1be
 	initContainers = append(initContainers, []corev1.Container{
 		{
 			Name:    "cruise-control-reporter",
-			Image:   util.GetBrokerMetricsReporterImage(brokerConfig, kafkaClusterSpec),
+			Image:   "docker-pipeline-upstream-mirror.dr-uw2.adobeitc.com/adobe/cruise-control:2.5.133-adbe-20240313",
 			Command: []string{"/bin/sh", "-cex", "cp -v /opt/cruise-control/cruise-control/build/dependant-libs/cruise-control-metrics-reporter.jar /opt/kafka/libs/extensions/cruise-control-metrics-reporter.jar"},
 			VolumeMounts: []corev1.VolumeMount{{
 				Name:      "extensions",
