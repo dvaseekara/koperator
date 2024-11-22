@@ -40,7 +40,7 @@ const (
 	testExternalTopicName = "topic-test-external"
 	testInternalTopicName = "topic-test-internal"
 
-	defaultTLSSecretName       = "test-secret"
+	defaultTLSSecretName       = "kafka-ca-certificate"
 	kcatName                   = "kcat"
 	zookeeperKind              = "zookeeperclusters.zookeeper.pravega.io"
 	zookeeperClusterName       = "zookeeper-server"
