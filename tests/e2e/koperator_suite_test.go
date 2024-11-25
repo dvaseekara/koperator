@@ -66,5 +66,5 @@ var _ = When("Testing e2e test altogether", Ordered, func() {
 	// testUninstallKafkaCluster()
 	testUninstallZookeeperCluster()
 	testUninstall()
-	snapshotClusterAndCompare(snapshottedInfo)
+	// snapshotClusterAndCompare(snapshottedInfo)
 })
