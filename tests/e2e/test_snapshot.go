@@ -144,9 +144,9 @@ func snapshotClusterAndCompare(snapshottedInitialInfo *clusterSnapshot) bool {
 			// Only doing this here because other assertions typically don't run against objects with this many elements.
 			initialMaxLength := format.MaxLength
 			defer func() { format.MaxLength = initialMaxLength }()
-			format.MaxLength = 9000
-
-			Expect(snapshottedCurrentInfo.ResourcesAsComparisonType()).To(ConsistOf(snapshottedInitialInfo.ResourcesAsComparisonType()))
+			format.MaxLength = 18000
+			format.
+				Expect(snapshottedCurrentInfo.ResourcesAsComparisonType()).To(ConsistOf(snapshottedInitialInfo.ResourcesAsComparisonType()))
 		})
 	})
 }
