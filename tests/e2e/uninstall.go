@@ -206,6 +206,49 @@ func requireRemoveCertManagerCRDs(kubectlOptions k8s.KubectlOptions) {
 		}
 	})
 }
+func requireUninstallingContour(kubectlOptions k8s.KubectlOptions) {
+	When("Uninstalling zookeeper-operator", func() {
+		requireUninstallingContourHelmChart(kubectlOptions)
+		requireRemoveContourCRDs(kubectlOptions)
+		requireRemoveNamespace(kubectlOptions, contourIngressControllerHelmDescriptor.Namespace)
+	})
+}
+
+// requireUninstallingCertManagerHelmChart uninstalls cert-manager helm chart
+// and checks the success of that operation.
+func requireUninstallingContourHelmChart(kubectlOptions k8s.KubectlOptions) {
+	It("Uninstalling Project Contour Helm chart", func() {
+		err := contourIngressControllerHelmDescriptor.uninstallHelmChart(kubectlOptions, true)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("Verifying Project Contour helm chart resources cleanup")
+
+		k8sResourceKinds, err := listK8sResourceKinds(kubectlOptions, "")
+		Expect(err).ShouldNot(HaveOccurred())
+
+		contourAvailableResourceKinds := stringSlicesInstersect(dependencyCRDs.Contour(), k8sResourceKinds)
+		contourAvailableResourceKinds = append(contourAvailableResourceKinds, basicK8sResourceKinds()...)
+
+		remainedResources, err := getK8sResources(kubectlOptions,
+			contourAvailableResourceKinds,
+			fmt.Sprintf(managedByHelmLabelTemplate, contourIngressControllerHelmDescriptor.ReleaseName),
+			"",
+			kubectlArgGoTemplateKindNameNamespace,
+			"--all-namespaces")
+		Expect(err).ShouldNot(HaveOccurred())
+
+		Expect(remainedResources).Should(BeEmpty())
+	})
+}
+
+func requireRemoveContourCRDs(kubectlOptions k8s.KubectlOptions) {
+	It("Removing Contour Ingress Controller CRDs", func() {
+		for _, crd := range dependencyCRDs.Contour() {
+			err := deleteK8sResourceNoErrNotFound(kubectlOptions, defaultDeletionTimeout, crdKind, crd)
+			Expect(err).ShouldNot(HaveOccurred())
+		}
+	})
+}
 
 // requireRemoveNamespace deletes the indicated namespace object
 func requireRemoveNamespace(kubectlOptions k8s.KubectlOptions, namespace string) {

@@ -75,6 +75,7 @@ func apiGroupKoperatorDependencies() map[string]string {
 		"cert-manager": "cert-manager.io",
 		"zookeeper":    "zookeeper.pravega.io",
 		"prometheus":   "monitoring.coreos.com",
+		"contour":      "projectcontour.io",
 	}
 }
 
