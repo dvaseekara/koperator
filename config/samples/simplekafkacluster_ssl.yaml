@@ -50,14 +50,14 @@ spec:
         containerPort: 29092
         usedForInnerBrokerCommunication: true
         # sslClientAuth defaults to be "required" for two-way SSL authentication, possible values are: "required", "requested", and "none"
-        # sslClientAuth: "requested"
+        sslClientAuth: "requested"
       - type: "ssl"
         name: "controller"
         containerPort: 29093
         usedForInnerBrokerCommunication: false
         usedForControllerCommunication: true
         # sslClientAuth defaults to be "required" for two-way SSL authentication, possible values are: "required", "requested", and "none"
-        # sslClientAuth: "requested"
+        sslClientAuth: "requested"
     sslSecrets:
       tlsSecretName: "kafka-ca-certificate"
       create: true
