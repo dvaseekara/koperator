@@ -40,7 +40,7 @@ const (
 	testExternalTopicName = "topic-test-external"
 	testInternalTopicName = "topic-test-internal"
 
-	defaultTLSSecretName       = "test-secret"
+	defaultTLSSecretName       = "kafka-ca-certificate"
 	kcatName                   = "kcat"
 	zookeeperKind              = "zookeeperclusters.zookeeper.pravega.io"
 	zookeeperClusterName       = "zookeeper-server"
@@ -75,6 +75,7 @@ func apiGroupKoperatorDependencies() map[string]string {
 		"cert-manager": "cert-manager.io",
 		"zookeeper":    "zookeeper.pravega.io",
 		"prometheus":   "monitoring.coreos.com",
+		"contour":      "projectcontour.io",
 	}
 }
 

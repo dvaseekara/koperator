@@ -24,6 +24,7 @@ type dependencyCRDsType struct {
 	zookeeper   []string
 	prometheus  []string
 	certManager []string
+	contour     []string
 }
 
 func (c *dependencyCRDsType) Zookeeper() []string {
@@ -35,12 +36,19 @@ func (c *dependencyCRDsType) Prometheus() []string {
 func (c *dependencyCRDsType) CertManager() []string {
 	return c.certManager
 }
+func (c *dependencyCRDsType) Contour() []string {
+	return c.contour
+}
 
 func (c *dependencyCRDsType) Initialize(kubectlOptions k8s.KubectlOptions) error {
 	var err error
 	c.certManager, err = listK8sResourceKinds(kubectlOptions, apiGroupKoperatorDependencies()["cert-manager"])
 	if err != nil {
 		return fmt.Errorf("initialize Cert-manager CRDs error: %w", err)
+	}
+	c.contour, err = listK8sResourceKinds(kubectlOptions, apiGroupKoperatorDependencies()["contour"])
+	if err != nil {
+		return fmt.Errorf("initialize Contour Ingress Controller CRDs error: %w", err)
 	}
 	c.prometheus, err = listK8sResourceKinds(kubectlOptions, apiGroupKoperatorDependencies()["prometheus"])
 	if err != nil {
