@@ -17,6 +17,7 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -412,6 +413,9 @@ func getListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map[stri
 		externalListenerSSLConfig map[string]string
 	)
 
+	internalListenerSSLConfig = make(map[string]string)
+	externalListenerSSLConfig = make(map[string]string)
+
 	for _, iListener := range l.InternalListeners {
 		if iListener.UsedForInnerBrokerCommunication {
 			if interBrokerListenerName == "" {
@@ -427,7 +431,7 @@ func getListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map[stri
 
 		// Add internal listeners SSL configuration
 		if iListener.Type == v1beta1.SecurityProtocolSSL {
-			internalListenerSSLConfig = generateListenerSSLConfig(iListener.Name, iListener.SSLClientAuth, serverPasses[iListener.Name])
+			maps.Copy(internalListenerSSLConfig, generateListenerSSLConfig(iListener.Name, iListener.SSLClientAuth, serverPasses[iListener.Name]))
 		}
 	}
 
@@ -438,7 +442,7 @@ func getListenerSpecificConfig(l *v1beta1.ListenersConfig, serverPasses map[stri
 		listenerConfig = append(listenerConfig, fmt.Sprintf("%s://:%d", upperedListenerName, eListener.ContainerPort))
 		// Add external listeners SSL configuration
 		if eListener.Type == v1beta1.SecurityProtocolSSL {
-			externalListenerSSLConfig = generateListenerSSLConfig(eListener.Name, eListener.SSLClientAuth, serverPasses[eListener.Name])
+			maps.Copy(externalListenerSSLConfig, generateListenerSSLConfig(eListener.Name, eListener.SSLClientAuth, serverPasses[eListener.Name]))
 		}
 	}
 
