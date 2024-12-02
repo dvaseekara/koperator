@@ -1102,7 +1102,7 @@ process.roles=broker,controller
 				},
 			},
 			expectedBrokerConfigs: []string{
-				`advertised.listeners=INTERNAL://kafka-0.kafka.svc.cluster.local:9092
+				`advertised.listeners=CONTROLLER://kafka-0.kafka.svc.cluster.local:9093,INTERNAL://kafka-0.kafka.svc.cluster.local:9092
 controller.listener.names=CONTROLLER
 controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
 cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
@@ -1128,44 +1128,13 @@ listener.name.internal.ssl.truststore.location=/var/run/secrets/java.io/keystore
 listener.name.internal.ssl.truststore.password=
 listener.name.internal.ssl.truststore.type=JKS
 listener.security.protocol.map=INTERNAL:SSL,CONTROLLER:SSL
-listeners=INTERNAL://:9092
+listeners=INTERNAL://:9092,CONTROLLER://:9093
 log.dirs=/test-kafka-logs/kafka,/test-kafka-logs-0/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=0
 process.roles=broker
 `,
-				`controller.listener.names=CONTROLLER
-controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
-cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
-cruise.control.metrics.reporter.kubernetes.mode=true
-cruise.control.metrics.reporter.security.protocol=SSL
-cruise.control.metrics.reporter.ssl.keystore.location=/var/run/secrets/java.io/keystores/client/keystore.jks
-cruise.control.metrics.reporter.ssl.keystore.password=
-cruise.control.metrics.reporter.ssl.truststore.location=/var/run/secrets/java.io/keystores/client/truststore.jks
-cruise.control.metrics.reporter.ssl.truststore.password=
-inter.broker.listener.name=INTERNAL
-listener.name.controller.ssl.client.auth=none
-listener.name.controller.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/controller/keystore.jks
-listener.name.controller.ssl.keystore.password=
-listener.name.controller.ssl.keystore.type=JKS
-listener.name.controller.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/controller/truststore.jks
-listener.name.controller.ssl.truststore.password=
-listener.name.controller.ssl.truststore.type=JKS
-listener.name.internal.ssl.client.auth=none
-listener.name.internal.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/internal/keystore.jks
-listener.name.internal.ssl.keystore.password=
-listener.name.internal.ssl.keystore.type=JKS
-listener.name.internal.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/internal/truststore.jks
-listener.name.internal.ssl.truststore.password=
-listener.name.internal.ssl.truststore.type=JKS
-listener.security.protocol.map=INTERNAL:SSL,CONTROLLER:SSL
-listeners=CONTROLLER://:9093
-log.dirs=/test-kafka-logs/kafka
-metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
-node.id=500
-process.roles=controller
-`,
-				`advertised.listeners=INTERNAL://kafka-200.kafka.svc.cluster.local:9092
+				`advertised.listeners=CONTROLLER://kafka-0.kafka.svc.cluster.local:9093,INTERNAL://kafka-0.kafka.svc.cluster.local:9092
 controller.listener.names=CONTROLLER
 controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
 cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
@@ -1191,7 +1160,39 @@ listener.name.internal.ssl.truststore.location=/var/run/secrets/java.io/keystore
 listener.name.internal.ssl.truststore.password=
 listener.name.internal.ssl.truststore.type=JKS
 listener.security.protocol.map=INTERNAL:SSL,CONTROLLER:SSL
-listeners=INTERNAL://:9092
+listeners=INTERNAL://:9092,CONTROLLER://:9093
+log.dirs=/test-kafka-logs/kafka
+metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
+node.id=500
+process.roles=controller
+`,
+				`advertised.listeners=CONTROLLER://kafka-200.kafka.svc.cluster.local:9093,INTERNAL://kafka-200.kafka.svc.cluster.local:9092
+controller.listener.names=CONTROLLER
+controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
+cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
+cruise.control.metrics.reporter.kubernetes.mode=true
+cruise.control.metrics.reporter.security.protocol=SSL
+cruise.control.metrics.reporter.ssl.keystore.location=/var/run/secrets/java.io/keystores/client/keystore.jks
+cruise.control.metrics.reporter.ssl.keystore.password=
+cruise.control.metrics.reporter.ssl.truststore.location=/var/run/secrets/java.io/keystores/client/truststore.jks
+cruise.control.metrics.reporter.ssl.truststore.password=
+inter.broker.listener.name=INTERNAL
+listener.name.controller.ssl.client.auth=none
+listener.name.controller.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/controller/keystore.jks
+listener.name.controller.ssl.keystore.password=
+listener.name.controller.ssl.keystore.type=JKS
+listener.name.controller.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/controller/truststore.jks
+listener.name.controller.ssl.truststore.password=
+listener.name.controller.ssl.truststore.type=JKS
+listener.name.internal.ssl.client.auth=none
+listener.name.internal.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/internal/keystore.jks
+listener.name.internal.ssl.keystore.password=
+listener.name.internal.ssl.keystore.type=JKS
+listener.name.internal.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/internal/truststore.jks
+listener.name.internal.ssl.truststore.password=
+listener.name.internal.ssl.truststore.type=JKS
+listener.security.protocol.map=INTERNAL:SSL,CONTROLLER:SSL
+listeners=INTERNAL://:9092,CONTROLLER://:9093
 log.dirs=/test-kafka-logs/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=200
@@ -1260,7 +1261,8 @@ process.roles=broker
 							ServerSSLCertSecret: &v1.LocalObjectReference{
 								Name: "server-secret",
 							},
-							SSLClientAuth: "none",
+							SSLClientAuth:                  "none",
+							UsedForControllerCommunication: "true",
 						},
 					},
 				},
