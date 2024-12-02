@@ -1261,8 +1261,7 @@ process.roles=broker
 							ServerSSLCertSecret: &v1.LocalObjectReference{
 								Name: "server-secret",
 							},
-							SSLClientAuth:                  "none",
-							UsedForControllerCommunication: "true",
+							SSLClientAuth: "none",
 						},
 					},
 				},
@@ -1300,42 +1299,44 @@ process.roles=broker
 				},
 			},
 			expectedBrokerConfigs: []string{
-				`advertised.listeners=INTERNAL://kafka-0.kafka.svc.cluster.local:9092
+				`advertised.listeners=CONTROLLER://kafka-0.kafka.svc.cluster.local:9092,INTERNAL://kafka-0.kafka.svc.cluster.local:9092
 controller.listener.names=CONTROLLER
 controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
 cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
 cruise.control.metrics.reporter.kubernetes.mode=true
 inter.broker.listener.name=INTERNAL
 listener.security.protocol.map=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-listeners=INTERNAL://:9092
+listeners=INTERNAL://:9092,CONTROLLER://:9093
 log.dirs=/test-kafka-logs/kafka,/test-kafka-logs-0/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=0
 process.roles=broker
 `,
-				`controller.listener.names=CONTROLLER
-controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
-cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
-cruise.control.metrics.reporter.kubernetes.mode=true
-inter.broker.listener.name=INTERNAL
-listener.security.protocol.map=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-listeners=CONTROLLER://:9093
-log.dirs=/test-kafka-logs/kafka
-metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
-node.id=500
-process.roles=controller
-`,
-				`advertised.listeners=INTERNAL://kafka-200.kafka.svc.cluster.local:9092
+				`advertised.listeners=CONTROLLER://kafka-0.kafka.svc.cluster.local:9092,INTERNAL://kafka-0.kafka.svc.cluster.local:9092
 controller.listener.names=CONTROLLER
 controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
 cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
 cruise.control.metrics.reporter.kubernetes.mode=true
 inter.broker.listener.name=INTERNAL
 listener.security.protocol.map=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-listeners=INTERNAL://:9092
-log.dirs=/test-kafka-logs/kafka
+listeners=INTERNAL://:9092,CONTROLLER://:9093
+log.dirs=/test-kafka-logs/kafka,/test-kafka-logs-0/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
-node.id=200
+node.id=0
+process.roles=broker
+`,
+				`advertised.listeners=INTERNAL://kafka-200.kafka.svc.cluster.local:9092
+advertised.listeners=CONTROLLER://kafka-200.kafka.svc.cluster.local:9092,INTERNAL://kafka-0.kafka.svc.cluster.local:9092
+controller.listener.names=CONTROLLER
+controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
+cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
+cruise.control.metrics.reporter.kubernetes.mode=true
+inter.broker.listener.name=INTERNAL
+listener.security.protocol.map=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+listeners=INTERNAL://:9092,CONTROLLER://:9093
+log.dirs=/test-kafka-logs/kafka,/test-kafka-logs-0/kafka
+metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
+node.id=0
 process.roles=broker
 `},
 		},
