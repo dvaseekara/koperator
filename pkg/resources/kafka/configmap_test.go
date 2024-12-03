@@ -1001,6 +1001,57 @@ node.id=100
 process.roles=broker,controller
 `},
 		},
+	}
+
+	t.Parallel()
+	mockClient := mocks.NewMockClient(gomock.NewController(t))
+	mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	for _, test := range testCases {
+		test := test
+
+		t.Run(test.testName, func(t *testing.T) {
+			r := Reconciler{
+				Reconciler: resources.Reconciler{
+					Client: mockClient,
+					KafkaCluster: &v1beta1.KafkaCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "kafka",
+							Namespace: "kafka",
+						},
+						Spec: v1beta1.KafkaClusterSpec{
+							KRaftMode:       true,
+							ListenersConfig: test.listenersConfig,
+							Brokers:         test.brokers,
+						},
+					},
+				},
+			}
+
+			for i, b := range test.brokers {
+				quorumVoters, err := generateQuorumVoters(r.KafkaCluster, test.controllerListenerStatus)
+				if err != nil {
+					t.Error(err)
+				}
+
+				generatedConfig := r.generateBrokerConfig(b, b.BrokerConfig, quorumVoters, map[string]v1beta1.ListenerStatusList{},
+					test.internalListenerStatuses, test.controllerListenerStatus, nil, "", nil, logr.Discard())
+
+				require.Equal(t, test.expectedBrokerConfigs[i], generatedConfig)
+			}
+		})
+	}
+}
+
+func TestGenerateBrokerConfigKRaftModeSSL(t *testing.T) {
+	testCases := []struct {
+		testName                 string
+		brokers                  []v1beta1.Broker
+		listenersConfig          v1beta1.ListenersConfig
+		internalListenerStatuses map[string]v1beta1.ListenerStatusList
+		controllerListenerStatus map[string]v1beta1.ListenerStatusList
+		expectedBrokerConfigs    []string
+	}{
 		{
 			testName: "a Kafka cluster with a mix of broker-only and controller-only nodes; broker-only nodes with multiple mount paths; two internal ssl listeners",
 			brokers: []v1beta1.Broker{
@@ -1022,17 +1073,6 @@ process.roles=broker,controller
 					Id: 500,
 					BrokerConfig: &v1beta1.BrokerConfig{
 						Roles: []string{"controller"},
-						StorageConfigs: []v1beta1.StorageConfig{
-							{
-								MountPath: "/test-kafka-logs",
-							},
-						},
-					},
-				},
-				{
-					Id: 200,
-					BrokerConfig: &v1beta1.BrokerConfig{
-						Roles: []string{"broker"},
 						StorageConfigs: []v1beta1.StorageConfig{
 							{
 								MountPath: "/test-kafka-logs",
@@ -1079,10 +1119,6 @@ process.roles=broker,controller
 						Name:    "broker-500",
 						Address: "kafka-500.kafka.svc.cluster.local:9092",
 					},
-					{
-						Name:    "broker-200",
-						Address: "kafka-200.kafka.svc.cluster.local:9092",
-					},
 				},
 			},
 			controllerListenerStatus: map[string]v1beta1.ListenerStatusList{
@@ -1094,10 +1130,6 @@ process.roles=broker,controller
 					{
 						Name:    "broker-500",
 						Address: "kafka-500.kafka.svc.cluster.local:9093",
-					},
-					{
-						Name:    "broker-200",
-						Address: "kafka-200.kafka.svc.cluster.local:9093",
 					},
 				},
 			},
@@ -1164,38 +1196,6 @@ log.dirs=/test-kafka-logs/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=500
 process.roles=controller
-`,
-				`advertised.listeners=INTERNAL://kafka-200.kafka.svc.cluster.local:9092
-controller.listener.names=CONTROLLER
-controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
-cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
-cruise.control.metrics.reporter.kubernetes.mode=true
-cruise.control.metrics.reporter.security.protocol=SSL
-cruise.control.metrics.reporter.ssl.keystore.location=/var/run/secrets/java.io/keystores/client/keystore.jks
-cruise.control.metrics.reporter.ssl.keystore.password=
-cruise.control.metrics.reporter.ssl.truststore.location=/var/run/secrets/java.io/keystores/client/truststore.jks
-cruise.control.metrics.reporter.ssl.truststore.password=
-inter.broker.listener.name=INTERNAL
-listener.name.controller.ssl.client.auth=none
-listener.name.controller.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/controller/keystore.jks
-listener.name.controller.ssl.keystore.password=
-listener.name.controller.ssl.keystore.type=JKS
-listener.name.controller.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/controller/truststore.jks
-listener.name.controller.ssl.truststore.password=
-listener.name.controller.ssl.truststore.type=JKS
-listener.name.internal.ssl.client.auth=none
-listener.name.internal.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/internal/keystore.jks
-listener.name.internal.ssl.keystore.password=
-listener.name.internal.ssl.keystore.type=JKS
-listener.name.internal.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/internal/truststore.jks
-listener.name.internal.ssl.truststore.password=
-listener.name.internal.ssl.truststore.type=JKS
-listener.security.protocol.map=INTERNAL:SSL,CONTROLLER:SSL
-listeners=INTERNAL://:9092
-log.dirs=/test-kafka-logs/kafka
-metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
-node.id=200
-process.roles=broker
 `},
 		},
 		{
@@ -1219,17 +1219,6 @@ process.roles=broker
 					Id: 500,
 					BrokerConfig: &v1beta1.BrokerConfig{
 						Roles: []string{"controller"},
-						StorageConfigs: []v1beta1.StorageConfig{
-							{
-								MountPath: "/test-kafka-logs",
-							},
-						},
-					},
-				},
-				{
-					Id: 200,
-					BrokerConfig: &v1beta1.BrokerConfig{
-						Roles: []string{"broker"},
 						StorageConfigs: []v1beta1.StorageConfig{
 							{
 								MountPath: "/test-kafka-logs",
@@ -1275,10 +1264,6 @@ process.roles=broker
 						Name:    "broker-500",
 						Address: "kafka-500.kafka.svc.cluster.local:9092",
 					},
-					{
-						Name:    "broker-200",
-						Address: "kafka-200.kafka.svc.cluster.local:9092",
-					},
 				},
 			},
 			controllerListenerStatus: map[string]v1beta1.ListenerStatusList{
@@ -1290,10 +1275,6 @@ process.roles=broker
 					{
 						Name:    "broker-500",
 						Address: "kafka-500.kafka.svc.cluster.local:9093",
-					},
-					{
-						Name:    "broker-200",
-						Address: "kafka-200.kafka.svc.cluster.local:9093",
 					},
 				},
 			},
@@ -1348,43 +1329,14 @@ log.dirs=/test-kafka-logs/kafka
 metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
 node.id=500
 process.roles=controller
-`,
-				`advertised.listeners=INTERNAL://kafka-200.kafka.svc.cluster.local:9092
-controller.quorum.voters=500@kafka-500.kafka.svc.cluster.local:9093
-cruise.control.metrics.reporter.bootstrap.servers=kafka-all-broker.kafka.svc.cluster.local:9092
-cruise.control.metrics.reporter.kubernetes.mode=true
-inter.broker.listener.name=
-listener.name.controller.ssl.client.auth=none
-listener.name.controller.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/controller/keystore.jks
-listener.name.controller.ssl.keystore.password=
-listener.name.controller.ssl.keystore.type=JKS
-listener.name.controller.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/controller/truststore.jks
-listener.name.controller.ssl.truststore.password=
-listener.name.controller.ssl.truststore.type=JKS
-listener.name.external.ssl.client.auth=none
-listener.name.external.ssl.keystore.location=/var/run/secrets/java.io/keystores/server/external/keystore.jks
-listener.name.external.ssl.keystore.password=
-listener.name.external.ssl.keystore.type=JKS
-listener.name.external.ssl.truststore.location=/var/run/secrets/java.io/keystores/server/external/truststore.jks
-listener.name.external.ssl.truststore.password=
-listener.name.external.ssl.truststore.type=JKS
-listener.security.protocol.map=EXTERNAL:SSL,CONTROLLER:SSL
-listeners=
-log.dirs=/test-kafka-logs/kafka
-metric.reporters=com.linkedin.kafka.cruisecontrol.metricsreporter.CruiseControlMetricsReporter
-node.id=200
-process.roles=broker
 `},
 		},
 	}
-
 	t.Parallel()
 	mockClient := mocks.NewMockClient(gomock.NewController(t))
 	mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-
 	for _, test := range testCases {
 		test := test
-
 		t.Run(test.testName, func(t *testing.T) {
 			r := Reconciler{
 				Reconciler: resources.Reconciler{
@@ -1402,13 +1354,11 @@ process.roles=broker
 					},
 				},
 			}
-
 			for i, b := range test.brokers {
 				quorumVoters, err := generateQuorumVoters(r.KafkaCluster, test.controllerListenerStatus)
 				if err != nil {
 					t.Error(err)
 				}
-
 				generatedConfig := r.generateBrokerConfig(b, b.BrokerConfig, quorumVoters, map[string]v1beta1.ListenerStatusList{},
 					test.internalListenerStatuses, test.controllerListenerStatus, nil, "", nil, logr.Discard())
 

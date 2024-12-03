@@ -45,16 +45,17 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, broker v
 	serverPasses map[string]string, clientPass string, superUsers []string, log logr.Logger) *properties.Properties {
 	config := properties.NewProperties()
 
-	bootstrapServers, err := kafkautils.GetBootstrapServersService(r.KafkaCluster)
-	if err != nil {
-		log.Error(err, "getting Kafka bootstrap servers for Cruise Control failed")
-	}
+	// bootstrapServers, err := kafkautils.GetBootstrapServersService(r.KafkaCluster)
+	// if err != nil {
+	// 	log.Error(err, "getting Kafka bootstrap servers for Cruise Control failed")
+	// }
+
 	// Add listener configuration
 	listenerConf, _ := generateListenerSpecificConfig(&r.KafkaCluster.Spec, serverPasses, log)
 	config.Merge(listenerConf)
 
 	// Cruise Control metrics reporter configuration
-	r.configCCMetricsReporter(broker, config, clientPass, bootstrapServers, log)
+	r.configCCMetricsReporter(broker, config, clientPass, log)
 
 	// Kafka Broker configurations
 	if r.KafkaCluster.Spec.KRaftMode {
@@ -64,9 +65,9 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, broker v
 	}
 
 	// This logic prevents the removal of the mountPath from the broker configmap
-	brokerConfigMapName := fmt.Sprintf(brokerConfigTemplate+"-%d", r.KafkaCluster.Name, broker.Id)
+	brokerConfigMapName := fmt.Sprintf(brokerConfigTemplate+"-"+"%d", r.KafkaCluster.Name, broker.Id)
 	var brokerConfigMapOld v1.ConfigMap
-	err = r.Client.Get(context.Background(), client.ObjectKey{Name: brokerConfigMapName, Namespace: r.KafkaCluster.GetNamespace()}, &brokerConfigMapOld)
+	err := r.Client.Get(context.Background(), client.ObjectKey{Name: brokerConfigMapName, Namespace: r.KafkaCluster.GetNamespace()}, &brokerConfigMapOld)
 	if err != nil && !apierrors.IsNotFound(err) {
 		log.Error(err, "getting broker configmap from the Kubernetes API server resulted an error")
 	}
@@ -101,7 +102,7 @@ func (r *Reconciler) getConfigProperties(bConfig *v1beta1.BrokerConfig, broker v
 	return config
 }
 
-func (r *Reconciler) configCCMetricsReporter(broker v1beta1.Broker, config *properties.Properties, clientPass, bootstrapServers string, log logr.Logger) {
+func (r *Reconciler) configCCMetricsReporter(broker v1beta1.Broker, config *properties.Properties, clientPass string, log logr.Logger) {
 	// Add Cruise Control Metrics Reporter SSL configuration
 	if util.IsSSLEnabledForInternalCommunication(r.KafkaCluster.Spec.ListenersConfig.InternalListeners) {
 		if !r.KafkaCluster.Spec.IsClientSSLSecretPresent() {
@@ -286,7 +287,7 @@ func (r *Reconciler) configMap(broker v1beta1.Broker, brokerConfig *v1beta1.Brok
 	serverPasses map[string]string, clientPass string, superUsers []string, log logr.Logger) *corev1.ConfigMap {
 	brokerConf := &corev1.ConfigMap{
 		ObjectMeta: templates.ObjectMeta(
-			fmt.Sprintf(brokerConfigTemplate+"-%d", r.KafkaCluster.Name, broker.Id), //nolint:goconst
+			fmt.Sprintf(brokerConfigTemplate+"-"+"%d", r.KafkaCluster.Name, broker.Id), //nolint:goconst
 			apiutil.MergeLabels(
 				apiutil.LabelsForKafka(r.KafkaCluster.Name),
 				map[string]string{v1beta1.BrokerIdLabelKey: fmt.Sprintf("%d", broker.Id)},
@@ -318,7 +319,7 @@ func appendListenerConfigs(advertisedListenerConfig []string, id int32,
 	listenerStatusList map[string]v1beta1.ListenerStatusList) []string {
 	for listenerName, statuses := range listenerStatusList {
 		for _, status := range statuses {
-			if status.Name == fmt.Sprintf("broker-%d", id) {
+			if status.Name == fmt.Sprintf("broker-"+"%d", id) {
 				advertisedListenerConfig = append(advertisedListenerConfig,
 					fmt.Sprintf("%s://%s", strings.ToUpper(listenerName), status.Address))
 				break
