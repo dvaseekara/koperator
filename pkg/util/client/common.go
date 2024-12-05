@@ -71,6 +71,21 @@ func GenerateKafkaAddressWithoutPort(cluster *v1beta1.KafkaCluster) string {
 	)
 }
 
+func GenerateKafkaControllerAddressWithoutPort(cluster *v1beta1.KafkaCluster) string {
+	if cluster.Spec.HeadlessServiceEnabled {
+		return fmt.Sprintf("%s.%s.svc.%s",
+			fmt.Sprintf(kafka.HeadlessControllerServiceTemplate, cluster.Name),
+			cluster.Namespace,
+			cluster.Spec.GetKubernetesClusterDomain(),
+		)
+	}
+	return fmt.Sprintf("%s.%s.svc.%s",
+		fmt.Sprintf(kafka.AllBrokerServiceTemplate, cluster.Name),
+		cluster.Namespace,
+		cluster.Spec.GetKubernetesClusterDomain(),
+	)
+}
+
 func GenerateKafkaAddress(cluster *v1beta1.KafkaCluster) string {
 	return fmt.Sprintf("%s:%d", GenerateKafkaAddressWithoutPort(cluster), getContainerPortForInnerCom(
 		cluster.Spec.ListenersConfig.InternalListeners, cluster.Spec.ListenersConfig.ExternalListeners))
