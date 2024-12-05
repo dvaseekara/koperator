@@ -74,7 +74,7 @@ func (r *Reconciler) headlessServiceTemplate(addressTemplate string) runtime.Obj
 		Spec: corev1.ServiceSpec{
 			Type:                     corev1.ServiceTypeClusterIP,
 			SessionAffinity:          corev1.ServiceAffinityNone,
-			Selector:                 apiutil.LabelsForKafka(r.KafkaCluster.Name),
+			Selector:                 apiutil.LabelsForBroker(r.KafkaCluster.Name),
 			Ports:                    usedPorts,
 			ClusterIP:                corev1.ClusterIPNone,
 			PublishNotReadyAddresses: true,
