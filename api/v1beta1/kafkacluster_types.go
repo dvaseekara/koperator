@@ -49,7 +49,7 @@ const (
 	DefaultCruiseControlImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
 
 	// DefaultKafkaImage is the default Kafka image used when users don't specify it in KafkaClusterSpec.ClusterImage
-	DefaultKafkaImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
+	DefaultKafkaImage = "ghcr.io/banzaicloud/kafka:2.13-3.4.1"
 
 	// ControllerNodeProcessRole represents the node is a controller node
 	ControllerNodeProcessRole = "controller"
@@ -119,7 +119,7 @@ const (
 	defaultKafkaClusterK8sClusterDomain  = "cluster.local"
 
 	// KafkaBroker.spec.container["kafka"].image
-	defaultKafkaImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
+	defaultKafkaImage = "ghcr.io/banzaicloud/kafka:2.13-3.4.1"
 
 	/* Istio Ingress Config */
 
@@ -1095,10 +1095,10 @@ func (bConfig *BrokerConfig) GetBrokerAnnotations() map[string]string {
 }
 
 // GetBrokerLabels returns the labels that are applied to broker pods
-func (bConfig *BrokerConfig) GetBrokerLabels(kafkaClusterName string, brokerId int32, isControllerOnly bool) map[string]string {
+func (bConfig *BrokerConfig) GetBrokerLabels(kafkaClusterName string, brokerId int32) map[string]string {
 	return util.MergeLabels(
 		bConfig.BrokerLabels,
-		util.LabelsForKafka(kafkaClusterName, isControllerOnly),
+		util.LabelsForKafka(kafkaClusterName),
 		map[string]string{
 			BrokerIdLabelKey: fmt.Sprintf("%d", brokerId),
 			ProcessRolesKey:  strings.Join(bConfig.Roles, "_"),

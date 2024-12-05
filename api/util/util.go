@@ -36,16 +36,8 @@ func MergeLabels(l ...map[string]string) map[string]string {
 
 // LabelsForKafka returns the labels for selecting the resources
 // belonging to the given kafka CR name.
-func LabelsForKafka(name string, isControllerOnly bool) map[string]string {
-	if isControllerOnly {
-		return map[string]string{"app": "kafka_controller", "kafka_cr": name}
-	} else {
-		return map[string]string{"app": "kafka", "kafka_cr": name}
-	}
-}
-
-func LabelsForKafkaController(name string) map[string]string {
-	return map[string]string{"app": "kafka_controller", "kafk-cr": name}
+func LabelsForKafka(name string) map[string]string {
+	return map[string]string{"app": "kafka", "kafka_cr": name}
 }
 
 // StringSliceContains returns true if list contains s
