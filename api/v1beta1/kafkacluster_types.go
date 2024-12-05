@@ -1101,16 +1101,20 @@ func (bConfig *BrokerConfig) GetBrokerAnnotations() map[string]string {
 }
 
 // GetBrokerLabels returns the labels that are applied to broker pods
-func (bConfig *BrokerConfig) GetBrokerLabels(kafkaClusterName string, brokerId int32) map[string]string {
-	return util.MergeLabels(
-		bConfig.BrokerLabels,
-		util.LabelsForKafka(kafkaClusterName),
-		map[string]string{
+func (bConfig *BrokerConfig) GetBrokerLabels(kafkaClusterName string, brokerId int32, kRaftMode bool) map[string]string {
+	kraftLabels := make(map[string]string, 0)
+	if kRaftMode {
+		kraftLabels = map[string]string{
 			BrokerIdLabelKey:    fmt.Sprintf("%d", brokerId),
 			ProcessRolesKey:     strings.Join(bConfig.Roles, "_"),
 			IsControllerNodeKey: fmt.Sprintf("%t", bConfig.IsControllerNode()),
 			IsBrokerNodeKey:     fmt.Sprintf("%t", bConfig.IsBrokerNode()),
-		},
+		}
+	}
+	return util.MergeLabels(
+		bConfig.BrokerLabels,
+		util.LabelsForKafka(kafkaClusterName),
+		kraftLabels,
 	)
 }
 
