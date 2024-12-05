@@ -420,6 +420,8 @@ func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluste
 		}
 
 		address := fmt.Sprintf("%s:%d", internalAddress, iListener.ContainerPort)
+
+		// used the controller headless address when KRaft is enabled and this listener is for controllers
 		if kafkaCluster.Spec.KRaftMode && iListener.UsedForControllerCommunication {
 			address = fmt.Sprintf("%s:%d", clientutil.GenerateKafkaControllerAddressWithoutPort(kafkaCluster), iListener.ContainerPort)
 		}

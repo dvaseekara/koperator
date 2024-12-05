@@ -215,10 +215,19 @@ func (r *Reconciler) Reconcile(log logr.Logger) error {
 
 	if r.KafkaCluster.Spec.HeadlessServiceEnabled {
 		// reconcile headless service
-		o := r.headlessService()
-		err := k8sutil.Reconcile(log, r.Client, o, r.KafkaCluster)
+		headless_obj := r.headlessService()
+		err := k8sutil.Reconcile(log, r.Client, headless_obj, r.KafkaCluster)
 		if err != nil {
-			return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", o.GetObjectKind().GroupVersionKind())
+			return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", headless_obj.GetObjectKind().GroupVersionKind())
+		}
+
+		// reconcile controller headless service
+		if r.KafkaCluster.Spec.KRaftMode {
+			headless_controller_obj := r.headlessControllerService()
+			err = k8sutil.Reconcile(log, r.Client, headless_controller_obj, r.KafkaCluster)
+			if err != nil {
+				return errors.WrapIfWithDetails(err, "failed to reconcile resource", "resource", headless_controller_obj.GetObjectKind().GroupVersionKind())
+			}
 		}
 	} else {
 		// reconcile all-broker service

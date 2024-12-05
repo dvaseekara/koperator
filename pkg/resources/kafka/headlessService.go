@@ -35,6 +35,14 @@ import (
 )
 
 func (r *Reconciler) headlessService() runtime.Object {
+	return r.headlessServiceTemplate(kafkautils.HeadlessServiceTemplate)
+}
+
+func (r *Reconciler) headlessControllerService() runtime.Object {
+	return r.headlessServiceTemplate(kafkautils.HeadlessControllerServiceTemplate)
+}
+
+func (r *Reconciler) headlessServiceTemplate(addressTemplate string) runtime.Object {
 	var usedPorts []corev1.ServicePort
 	// Append internal listener ports
 	usedPorts = append(usedPorts,
@@ -58,7 +66,7 @@ func (r *Reconciler) headlessService() runtime.Object {
 
 	return &corev1.Service{
 		ObjectMeta: templates.ObjectMetaWithAnnotations(
-			fmt.Sprintf(kafkautils.HeadlessServiceTemplate, r.KafkaCluster.GetName()),
+			fmt.Sprintf(addressTemplate, r.KafkaCluster.GetName()),
 			apiutil.MergeLabels(apiutil.LabelsForKafka(r.KafkaCluster.GetName()), r.KafkaCluster.GetLabels()),
 			r.KafkaCluster.Spec.ListenersConfig.GetServiceAnnotations(),
 			r.KafkaCluster,
