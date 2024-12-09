@@ -455,7 +455,7 @@ func TestGetBrokerLabels(t *testing.T) {
 		},
 	}
 
-	result := brokerConfig.GetBrokerLabels(expectedKafkaCRName, expectedBrokerId)
+	result := brokerConfig.GetBrokerLabels(expectedKafkaCRName, expectedBrokerId, false)
 
 	if !reflect.DeepEqual(result, expected) {
 		t.Error("Expected:", expected, "Got:", result)
