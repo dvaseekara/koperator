@@ -301,7 +301,7 @@ func getVolumes(brokerConfigVolumes, dataVolume []corev1.Volume, kafkaClusterSpe
 			Name: brokerConfigMapVolumeMount,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: fmt.Sprintf(brokerConfigTemplate+"-%d", kafkaClusterName, id)},
+					LocalObjectReference: corev1.LocalObjectReference{Name: fmt.Sprintf(brokerConfigTemplate+"-"+"%d", kafkaClusterName, id)},
 					DefaultMode:          util.Int32Pointer(0644),
 				},
 			},
@@ -383,7 +383,7 @@ func generateDataVolumeAndVolumeMount(pvcs []corev1.PersistentVolumeClaim, stora
 	// PVC volume mount (pvcs are already sorted by pvc name in 'getCreatedPvcForBroker' function
 	for i, pvc := range pvcs {
 		volumes = append(volumes, corev1.Volume{
-			Name: fmt.Sprintf(kafkaDataVolumeMount+"-%d", i),
+			Name: fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", i),
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvc.Name,
@@ -391,7 +391,7 @@ func generateDataVolumeAndVolumeMount(pvcs []corev1.PersistentVolumeClaim, stora
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-%d", i),
+			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", i),
 			MountPath: pvc.Annotations["mountPath"],
 		})
 	}
@@ -412,13 +412,13 @@ func generateDataVolumeAndVolumeMount(pvcs []corev1.PersistentVolumeClaim, stora
 	for i := range emptyDirs {
 		j := i + offset
 		volumes = append(volumes, corev1.Volume{
-			Name: fmt.Sprintf(kafkaDataVolumeMount+"-%d", j),
+			Name: fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", j),
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: emptyDirs[i].EmptyDir,
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-%d", j),
+			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", j),
 			MountPath: emptyDirs[i].MountPath,
 		})
 	}

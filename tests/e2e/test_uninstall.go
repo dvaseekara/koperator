@@ -57,5 +57,10 @@ func testUninstall() bool {
 			ConfigPath:  kubectlOptions.ConfigPath,
 			Namespace:   certManagerHelmDescriptor.Namespace,
 		})
+		requireUninstallingContour(k8s.KubectlOptions{
+			ContextName: kubectlOptions.ContextName,
+			ConfigPath:  kubectlOptions.ConfigPath,
+			Namespace:   contourIngressControllerHelmDescriptor.Namespace,
+		})
 	})
 }

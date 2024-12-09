@@ -33,7 +33,6 @@ import (
 
 	"github.com/banzaicloud/koperator/api/v1alpha1"
 	"github.com/banzaicloud/koperator/api/v1beta1"
-	"github.com/banzaicloud/koperator/pkg/scale"
 	"github.com/banzaicloud/koperator/pkg/util"
 )
 
@@ -47,10 +46,10 @@ var _ = Describe("CruiseControlTaskReconciler", func() {
 		operation          *v1alpha1.CruiseControlOperation
 	)
 
-	const (
-		mountPath = "/kafka-logs-test"
-		trueStr   = "true"
-	)
+	// const (
+	// 	mountPath = "/kafka-logs-test"
+	// 	trueStr   = "true"
+	// )
 
 	BeforeEach(func(ctx SpecContext) {
 		atomic.AddUint64(&count, 1)
@@ -455,18 +454,18 @@ func getScaleMockCCTask1() *mocks.MockCruiseControlScaler {
 	return scaleMock
 }
 
-func getScaleMockCCTask2(onlineLogDirs []string) *mocks.MockCruiseControlScaler {
-	mockCtrl := gomock.NewController(GinkgoT())
-	scaleMock := mocks.NewMockCruiseControlScaler(mockCtrl)
-	availableBrokers := []string{"1", "2", "3"}
-	scaleMock.EXPECT().BrokersWithState(gomock.Any(), gomock.All()).Return(availableBrokers, nil).AnyTimes()
+// func getScaleMockCCTask2(onlineLogDirs []string) *mocks.MockCruiseControlScaler {
+// 	mockCtrl := gomock.NewController(GinkgoT())
+// 	scaleMock := mocks.NewMockCruiseControlScaler(mockCtrl)
+// 	availableBrokers := []string{"1", "2", "3"}
+// 	scaleMock.EXPECT().BrokersWithState(gomock.Any(), gomock.All()).Return(availableBrokers, nil).AnyTimes()
 
-	logDirs := make(map[scale.LogDirState][]string)
-	logDirsBrokerRet := make(map[string]map[scale.LogDirState][]string)
+// 	logDirs := make(map[scale.LogDirState][]string)
+// 	logDirsBrokerRet := make(map[string]map[scale.LogDirState][]string)
 
-	logDirs[scale.LogDirStateOnline] = onlineLogDirs
-	logDirsBrokerRet["0"] = logDirs
-	logDirsBrokerRet["1"] = logDirs
-	scaleMock.EXPECT().LogDirsByBroker(gomock.Any()).Return(logDirsBrokerRet, nil).AnyTimes()
-	return scaleMock
-}
+// 	logDirs[scale.LogDirStateOnline] = onlineLogDirs
+// 	logDirsBrokerRet["0"] = logDirs
+// 	logDirsBrokerRet["1"] = logDirs
+// 	scaleMock.EXPECT().LogDirsByBroker(gomock.Any()).Return(logDirsBrokerRet, nil).AnyTimes()
+// 	return scaleMock
+// }
