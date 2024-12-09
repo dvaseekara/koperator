@@ -433,9 +433,7 @@ func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluste
 
 		// add addresses per broker
 		for _, broker := range kafkaCluster.Spec.Brokers {
-
 			if kafkaCluster.Spec.KRaftMode {
-
 				// for KRaft mode, skip when listener is used for interbroker communication and is not a broker role
 				if iListener.UsedForInnerBrokerCommunication {
 					brokerConfig, err := broker.GetBrokerConfig(kafkaCluster.Spec)
