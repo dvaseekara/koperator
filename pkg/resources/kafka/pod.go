@@ -42,45 +42,7 @@ var (
 )
 
 func (r *Reconciler) pod(id int32, brokerConfig *v1beta1.BrokerConfig, pvcs []corev1.PersistentVolumeClaim, log logr.Logger) runtime.Object {
-	var kafkaBrokerContainerPorts []corev1.ContainerPort
-
-	for _, eListener := range r.KafkaCluster.Spec.ListenersConfig.ExternalListeners {
-		if _, ok := r.KafkaCluster.Status.ListenerStatuses.ExternalListeners[eListener.Name]; !ok {
-			continue
-		}
-		kafkaBrokerContainerPorts = append(kafkaBrokerContainerPorts, corev1.ContainerPort{
-			Name:          strings.ReplaceAll(eListener.GetListenerServiceName(), "_", "-"),
-			ContainerPort: eListener.ContainerPort,
-			Protocol:      corev1.ProtocolTCP,
-		})
-	}
-
-	for _, iListener := range r.KafkaCluster.Spec.ListenersConfig.InternalListeners {
-		kafkaBrokerContainerPorts = append(kafkaBrokerContainerPorts, corev1.ContainerPort{
-			Name:          strings.ReplaceAll(iListener.GetListenerServiceName(), "_", "-"),
-			ContainerPort: iListener.ContainerPort,
-			Protocol:      corev1.ProtocolTCP,
-		})
-	}
-
-	kafkaBrokerContainerPorts = append(kafkaBrokerContainerPorts, r.KafkaCluster.Spec.AdditionalPorts...)
-
-	for _, envVar := range r.KafkaCluster.Spec.Envs {
-		if envVar.Name == "JMX_PORT" {
-			port, err := strconv.ParseInt(envVar.Value, 10, 32)
-			if err != nil {
-				log.Error(err, "can't parse JMX_PORT environment variable")
-			}
-
-			kafkaBrokerContainerPorts = append(kafkaBrokerContainerPorts, corev1.ContainerPort{
-				Name:          "jmx",
-				ContainerPort: int32(port),
-				Protocol:      corev1.ProtocolTCP,
-			})
-
-			break
-		}
-	}
+	const kafkaContainerName = "kafka"
 
 	dataVolume, dataVolumeMount := generateDataVolumeAndVolumeMount(pvcs, brokerConfig.StorageConfigs)
 
@@ -100,7 +62,7 @@ func (r *Reconciler) pod(id int32, brokerConfig *v1beta1.BrokerConfig, pvcs []co
 			Affinity:        getAffinity(brokerConfig, r.KafkaCluster),
 			Containers: append([]corev1.Container{
 				{
-					Name:  "kafka",
+					Name:  kafkaContainerName,
 					Image: util.GetBrokerImage(brokerConfig, r.KafkaCluster.Spec.GetClusterImage()),
 					Lifecycle: &corev1.Lifecycle{
 						PreStop: &corev1.LifecycleHandler{
@@ -140,14 +102,8 @@ fi`},
 						},
 					}),
 
-					Command: command,
-					Ports: append(kafkaBrokerContainerPorts, []corev1.ContainerPort{
-						{
-							ContainerPort: 9020,
-							Protocol:      corev1.ProtocolTCP,
-							Name:          "metrics",
-						},
-					}...),
+					Command:      command,
+					Ports:        r.generateKafkaContainerPorts(log),
 					VolumeMounts: getVolumeMounts(brokerConfig.VolumeMounts, dataVolumeMount, r.KafkaCluster.Spec, r.KafkaCluster.Name),
 					Resources:    *brokerConfig.GetResources(),
 				},
@@ -167,7 +123,82 @@ fi`},
 		pod.Spec.Subdomain = fmt.Sprintf(kafkautils.HeadlessServiceTemplate, r.KafkaCluster.Name)
 	}
 
+	if r.KafkaCluster.Spec.KRaftMode {
+		for i, container := range pod.Spec.Containers {
+			if container.Name == kafkaContainerName {
+				// in KRaft mode, all broker nodes within the same Kafka cluster need to use the same cluster ID to format the storage
+				pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env,
+					corev1.EnvVar{
+						Name:  "CLUSTER_ID",
+						Value: r.KafkaCluster.Status.ClusterID,
+					},
+				)
+				// see how this env var is used in wait-for-envoy-sidecars.sh
+				storageMountPaths := brokerConfig.GetStorageMountPaths()
+				if storageMountPaths != "" {
+					pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env,
+						corev1.EnvVar{
+							Name:  "LOG_DIRS",
+							Value: brokerConfig.GetStorageMountPaths(),
+						},
+					)
+				}
+				break
+			}
+		}
+	}
+
 	return pod
+}
+
+func (r *Reconciler) generateKafkaContainerPorts(log logr.Logger) []corev1.ContainerPort {
+	var kafkaContainerPorts []corev1.ContainerPort
+
+	for _, eListener := range r.KafkaCluster.Spec.ListenersConfig.ExternalListeners {
+		if _, ok := r.KafkaCluster.Status.ListenerStatuses.ExternalListeners[eListener.Name]; !ok {
+			continue
+		}
+		kafkaContainerPorts = append(kafkaContainerPorts, corev1.ContainerPort{
+			Name:          strings.ReplaceAll(eListener.GetListenerServiceName(), "_", "-"),
+			ContainerPort: eListener.ContainerPort,
+			Protocol:      corev1.ProtocolTCP,
+		})
+	}
+
+	for _, iListener := range r.KafkaCluster.Spec.ListenersConfig.InternalListeners {
+		kafkaContainerPorts = append(kafkaContainerPorts, corev1.ContainerPort{
+			Name:          strings.ReplaceAll(iListener.GetListenerServiceName(), "_", "-"),
+			ContainerPort: iListener.ContainerPort,
+			Protocol:      corev1.ProtocolTCP,
+		})
+	}
+
+	kafkaContainerPorts = append(kafkaContainerPorts, r.KafkaCluster.Spec.AdditionalPorts...)
+
+	for _, envVar := range r.KafkaCluster.Spec.Envs {
+		if envVar.Name == "JMX_PORT" {
+			port, err := strconv.ParseInt(envVar.Value, 10, 32)
+			if err != nil {
+				log.Error(err, "can't parse JMX_PORT environment variable")
+			}
+
+			kafkaContainerPorts = append(kafkaContainerPorts, corev1.ContainerPort{
+				Name:          "jmx",
+				ContainerPort: int32(port),
+				Protocol:      corev1.ProtocolTCP,
+			})
+			break
+		}
+	}
+
+	// container port for metrics
+	kafkaContainerPorts = append(kafkaContainerPorts, corev1.ContainerPort{
+		ContainerPort: 9020,
+		Protocol:      corev1.ProtocolTCP,
+		Name:          "metrics",
+	})
+
+	return kafkaContainerPorts
 }
 
 func getInitContainers(brokerConfig *v1beta1.BrokerConfig, kafkaClusterSpec v1beta1.KafkaClusterSpec) []corev1.Container {
@@ -270,7 +301,7 @@ func getVolumes(brokerConfigVolumes, dataVolume []corev1.Volume, kafkaClusterSpe
 			Name: brokerConfigMapVolumeMount,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: fmt.Sprintf(brokerConfigTemplate+"-%d", kafkaClusterName, id)},
+					LocalObjectReference: corev1.LocalObjectReference{Name: fmt.Sprintf(brokerConfigTemplate+"-"+"%d", kafkaClusterName, id)},
 					DefaultMode:          util.Int32Pointer(0644),
 				},
 			},
@@ -352,7 +383,7 @@ func generateDataVolumeAndVolumeMount(pvcs []corev1.PersistentVolumeClaim, stora
 	// PVC volume mount (pvcs are already sorted by pvc name in 'getCreatedPvcForBroker' function
 	for i, pvc := range pvcs {
 		volumes = append(volumes, corev1.Volume{
-			Name: fmt.Sprintf(kafkaDataVolumeMount+"-%d", i),
+			Name: fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", i),
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvc.Name,
@@ -360,7 +391,7 @@ func generateDataVolumeAndVolumeMount(pvcs []corev1.PersistentVolumeClaim, stora
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-%d", i),
+			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", i),
 			MountPath: pvc.Annotations["mountPath"],
 		})
 	}
@@ -381,13 +412,13 @@ func generateDataVolumeAndVolumeMount(pvcs []corev1.PersistentVolumeClaim, stora
 	for i := range emptyDirs {
 		j := i + offset
 		volumes = append(volumes, corev1.Volume{
-			Name: fmt.Sprintf(kafkaDataVolumeMount+"-%d", j),
+			Name: fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", j),
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: emptyDirs[i].EmptyDir,
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-%d", j),
+			Name:      fmt.Sprintf(kafkaDataVolumeMount+"-"+"%d", j),
 			MountPath: emptyDirs[i].MountPath,
 		})
 	}
