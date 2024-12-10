@@ -37,11 +37,18 @@ func UseSSL(cluster *v1beta1.KafkaCluster) bool {
 
 func getContainerPortForInnerCom(internalListeners []v1beta1.InternalListenerConfig, extListeners []v1beta1.ExternalListenerConfig) int32 {
 	for _, val := range internalListeners {
+		if val.UsedForKafkaAdminCommunication { // Optional override to return a port from a different listener. Needed if b2b communication is on an external listener and and you want the koperator to interact with kafka over a different port.
+			return val.ContainerPort
+		}
 		if val.UsedForInnerBrokerCommunication {
 			return val.ContainerPort
 		}
 	}
+
 	for _, val := range extListeners {
+		if val.UsedForKafkaAdminCommunication {
+			return val.ContainerPort
+		}
 		if val.UsedForInnerBrokerCommunication {
 			return val.ContainerPort
 		}
@@ -53,6 +60,25 @@ func GenerateKafkaAddressWithoutPort(cluster *v1beta1.KafkaCluster) string {
 	if cluster.Spec.HeadlessServiceEnabled {
 		return fmt.Sprintf("%s.%s.svc.%s",
 			fmt.Sprintf(kafka.HeadlessServiceTemplate, cluster.Name),
+			cluster.Namespace,
+			cluster.Spec.GetKubernetesClusterDomain(),
+		)
+	}
+	return fmt.Sprintf("%s.%s.svc.%s",
+		fmt.Sprintf(kafka.AllBrokerServiceTemplate, cluster.Name),
+		cluster.Namespace,
+		cluster.Spec.GetKubernetesClusterDomain(),
+	)
+}
+
+func GenerateKafkaControllerAddressWithoutPort(cluster *v1beta1.KafkaCluster) string {
+	if cluster.Spec.HeadlessServiceEnabled {
+		serviceTemplate := kafka.HeadlessServiceTemplate
+		if cluster.Spec.KRaftMode {
+			serviceTemplate = kafka.HeadlessControllerServiceTemplate
+		}
+		return fmt.Sprintf("%s.%s.svc.%s",
+			fmt.Sprintf(serviceTemplate, cluster.Name),
 			cluster.Namespace,
 			cluster.Spec.GetKubernetesClusterDomain(),
 		)

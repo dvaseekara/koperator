@@ -45,6 +45,12 @@ const (
 	// ProcessRolesKey is used to identify which process roles the Kafka pod has
 	ProcessRolesKey = "processRoles"
 
+	// IsBrokerNodeKey is used to identify if the kafka pod is either a broker or a broker_controller
+	IsBrokerNodeKey = "isBrokerNode"
+
+	// IsControllerNodeKey is used to identify if the kafka pod is a controller or broker_controller
+	IsControllerNodeKey = "isControllerNode"
+
 	// DefaultCruiseControlImage is the default CC image used when users don't specify it in CruiseControlConfig.Image
 	DefaultCruiseControlImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
 
@@ -178,7 +184,7 @@ type KafkaClusterSpec struct {
 	RollingUpgradeConfig        RollingUpgradeConfig    `json:"rollingUpgradeConfig"`
 	// Selector for broker pods that need to be recycled/reconciled
 	TaintedBrokersSelector *metav1.LabelSelector `json:"taintedBrokersSelector,omitempty"`
-	// +kubebuilder:validation:Enum=envoy;istioingress
+	// +kubebuilder:validation:Enum=envoy;contour;istioingress
 	// IngressController specifies the type of the ingress controller to be used for external listeners. The `istioingress` ingress controller type requires the `spec.istioControlPlane` field to be populated as well.
 	IngressController string `json:"ingressController,omitempty"`
 	// IstioControlPlane is a reference to the IstioControlPlane resource for envoy configuration. It must be specified if istio ingress is used.
@@ -190,13 +196,14 @@ type KafkaClusterSpec struct {
 	// when false, they will be kept so the Kafka cluster remains available for those Kafka clients which are still using the previous ingress setting.
 	// +kubebuilder:default=false
 	// +optional
-	RemoveUnusedIngressResources bool                `json:"removeUnusedIngressResources,omitempty"`
-	PropagateLabels              bool                `json:"propagateLabels,omitempty"`
-	CruiseControlConfig          CruiseControlConfig `json:"cruiseControlConfig"`
-	EnvoyConfig                  EnvoyConfig         `json:"envoyConfig,omitempty"`
-	MonitoringConfig             MonitoringConfig    `json:"monitoringConfig,omitempty"`
-	AlertManagerConfig           *AlertManagerConfig `json:"alertManagerConfig,omitempty"`
-	IstioIngressConfig           IstioIngressConfig  `json:"istioIngressConfig,omitempty"`
+	RemoveUnusedIngressResources bool                 `json:"removeUnusedIngressResources,omitempty"`
+	PropagateLabels              bool                 `json:"propagateLabels,omitempty"`
+	CruiseControlConfig          CruiseControlConfig  `json:"cruiseControlConfig"`
+	EnvoyConfig                  EnvoyConfig          `json:"envoyConfig,omitempty"`
+	ContourIngressConfig         ContourIngressConfig `json:"contourIngressConfig,omitempty"`
+	MonitoringConfig             MonitoringConfig     `json:"monitoringConfig,omitempty"`
+	AlertManagerConfig           *AlertManagerConfig  `json:"alertManagerConfig,omitempty"`
+	IstioIngressConfig           IstioIngressConfig   `json:"istioIngressConfig,omitempty"`
 	// Envs defines environment variables for Kafka broker Pods.
 	// Adding the "+" prefix to the name prepends the value to that environment variable instead of overwriting it.
 	// Add the "+" suffix to append.
@@ -239,15 +246,17 @@ type RollingUpgradeConfig struct {
 	// alerts with 'rollingupgrade'
 	FailureThreshold int `json:"failureThreshold"`
 
-	// ConcurrentBrokerRestartsAllowed controls how many brokers can be restarted in parallel during a rolling upgrade. If
+	// ConcurrentBrokerRestartCountPerRack controls how many brokers can be restarted in parallel during a rolling upgrade. If
 	// it is set to a value greater than 1, the operator will restart up to that amount of brokers in parallel, if the
 	// brokers are within the same rack (as specified by "broker.rack" in broker read-only configs). Since using Kafka broker
 	// racks spreads out the replicas, we know that restarting multiple brokers in the same rack will not cause more than
 	// 1/Nth of the replicas of a topic-partition to be unavailable at the same time, where N is the number of racks used.
 	// This is a safe way to speed up the rolling upgrade. Note that for the rack distribution explained above, Cruise Control
-	// requires `com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareDistributionGoal` to be configured.
+	// requires `com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareDistributionGoal` to be configured. Default value is 1.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
 	// +optional
-	ConcurrentBrokerRestartsAllowed int `json:"concurrentBrokerRestartsAllowed,omitempty"`
+	ConcurrentBrokerRestartCountPerRack int `json:"concurrentBrokerRestartCountPerRack,omitempty"`
 }
 
 // DisruptionBudget defines the configuration for PodDisruptionBudget where the workload is managed by the kafka-operator
@@ -622,6 +631,10 @@ func (c IngressServiceSettings) GetServiceType() corev1.ServiceType {
 	return c.ServiceType
 }
 
+func (c ContourIngressConfig) GetBrokerFqdn(brokerId int32) string {
+	return strings.Replace(c.BrokerFQDNTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
+}
+
 // Replace %id in brokerHostnameTemplate with actual broker id
 func (c EnvoyConfig) GetBrokerHostname(brokerId int32) string {
 	return strings.Replace(c.BrokerHostnameTemplate, "%id", strconv.Itoa(int(brokerId)), 1)
@@ -702,7 +715,7 @@ type ExternalListenerConfig struct {
 	// IngressControllerTargetPort defines the container port that the ingress controller uses for handling external traffic.
 	// If not defined, 29092 will be used as the default IngressControllerTargetPort value.
 	IngressControllerTargetPort *int32 `json:"ingressControllerTargetPort,omitempty"`
-	// +kubebuilder:validation:Enum=LoadBalancer;NodePort
+	// +kubebuilder:validation:Enum=LoadBalancer;NodePort;ClusterIP
 	// accessMethod defines the method which the external listener is exposed through.
 	// Two types are supported LoadBalancer and NodePort.
 	// The recommended and default is the LoadBalancer.
@@ -725,8 +738,16 @@ type Config struct {
 
 type IngressConfig struct {
 	IngressServiceSettings `json:",inline"`
-	IstioIngressConfig     *IstioIngressConfig `json:"istioIngressConfig,omitempty"`
-	EnvoyConfig            *EnvoyConfig        `json:"envoyConfig,omitempty"`
+	IstioIngressConfig     *IstioIngressConfig   `json:"istioIngressConfig,omitempty"`
+	EnvoyConfig            *EnvoyConfig          `json:"envoyConfig,omitempty"`
+	ContourIngressConfig   *ContourIngressConfig `json:"contourIngressConfig,omitempty"`
+}
+
+type ContourIngressConfig struct {
+	// TLS secret used for Contour IngressRoute resource
+	TLSSecretName string `json:"tlsSecretName"`
+	// Broker hostname template for Contour IngressRoute resource to generate broker hostnames.
+	BrokerFQDNTemplate string `json:"brokerFQDNTemplate"`
 }
 
 // InternalListenerConfig defines the internal listener config for Kafka
@@ -764,6 +785,9 @@ type CommonListenerSpec struct {
 	// At least one of the listeners should have this flag enabled
 	// +optional
 	UsedForInnerBrokerCommunication bool `json:"usedForInnerBrokerCommunication"`
+	// UsedForKafkaAdminCommunication allows for a different port to be returned when the koperator is checking for the port to use to check if kafka is operating.
+	// +optional
+	UsedForKafkaAdminCommunication bool `json:"usedForKafkaAdminCommunication,omitempty"`
 }
 
 func (c *CommonListenerSpec) GetServerSSLCertSecretName() string {
@@ -1077,14 +1101,19 @@ func (bConfig *BrokerConfig) GetBrokerAnnotations() map[string]string {
 }
 
 // GetBrokerLabels returns the labels that are applied to broker pods
-func (bConfig *BrokerConfig) GetBrokerLabels(kafkaClusterName string, brokerId int32) map[string]string {
+func (bConfig *BrokerConfig) GetBrokerLabels(kafkaClusterName string, brokerId int32, kRaftMode bool) map[string]string {
+	kraftLabels := make(map[string]string, 0)
+	if kRaftMode {
+		kraftLabels = map[string]string{
+			ProcessRolesKey:     strings.Join(bConfig.Roles, "_"),
+			IsControllerNodeKey: fmt.Sprintf("%t", bConfig.IsControllerNode()),
+			IsBrokerNodeKey:     fmt.Sprintf("%t", bConfig.IsBrokerNode()),
+		}
+	}
 	return util.MergeLabels(
 		bConfig.BrokerLabels,
 		util.LabelsForKafka(kafkaClusterName),
-		map[string]string{
-			BrokerIdLabelKey: fmt.Sprintf("%d", brokerId),
-			ProcessRolesKey:  strings.Join(bConfig.Roles, "_"),
-		},
+		kraftLabels, map[string]string{BrokerIdLabelKey: fmt.Sprintf("%d", brokerId)},
 	)
 }
 

@@ -40,7 +40,7 @@ const (
 	testExternalTopicName = "topic-test-external"
 	testInternalTopicName = "topic-test-internal"
 
-	defaultTLSSecretName       = "test-secret"
+	defaultTLSSecretName       = "kafka-ca-certificate"
 	kcatName                   = "kcat"
 	zookeeperKind              = "zookeeperclusters.zookeeper.pravega.io"
 	zookeeperClusterName       = "zookeeper-server"
@@ -53,7 +53,7 @@ const (
 	defaultTopicCreationWaitTime           = 10 * time.Second
 	defaultUserCreationWaitTime            = 10 * time.Second
 	kafkaClusterCreateTimeout              = 600 * time.Second
-	kafkaClusterResourceCleanupTimeout     = 120 * time.Second
+	kafkaClusterResourceCleanupTimeout     = 600 * time.Second
 	kcatDeleetionTimeout                   = 40 * time.Second
 	zookeeperClusterCreateTimeout          = 4 * time.Minute
 	zookeeperClusterResourceCleanupTimeout = 60 * time.Second
@@ -75,6 +75,7 @@ func apiGroupKoperatorDependencies() map[string]string {
 		"cert-manager": "cert-manager.io",
 		"zookeeper":    "zookeeper.pravega.io",
 		"prometheus":   "monitoring.coreos.com",
+		"contour":      "projectcontour.io",
 	}
 }
 
