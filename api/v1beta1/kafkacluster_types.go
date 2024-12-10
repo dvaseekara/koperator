@@ -52,10 +52,10 @@ const (
 	IsControllerNodeKey = "isControllerNode"
 
 	// DefaultCruiseControlImage is the default CC image used when users don't specify it in CruiseControlConfig.Image
-	DefaultCruiseControlImage = "docker-pipeline-upstream-mirror.dr-uw2.adobeitc.com/adobe/cruise-control:2.5.133-adbe-20240313"
+	DefaultCruiseControlImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
 
 	// DefaultKafkaImage is the default Kafka image used when users don't specify it in KafkaClusterSpec.ClusterImage
-	DefaultKafkaImage = "docker-pipeline-upstream-mirror.dr-uw2.adobeitc.com/adobe/kafka:2.13-3.7.0"
+	DefaultKafkaImage = "ghcr.io/banzaicloud/kafka:2.13-3.4.1"
 
 	// ControllerNodeProcessRole represents the node is a controller node
 	ControllerNodeProcessRole = "controller"
@@ -109,7 +109,7 @@ const (
 	/* Cruise Control Config */
 
 	// CruiseControlDeployment.spec.template.spec.container["%s-cruisecontrol"].image
-	defaultCruiseControlImage = "docker-pipeline-upstream-mirror.dr-uw2.adobeitc.com/adobe/cruise-control:2.5.133-adbe-20240313"
+	defaultCruiseControlImage = "ghcr.io/banzaicloud/cruise-control:2.5.123"
 
 	// CruiseControlDeployment.spec.template.spec.container["%s-cruisecontrol"].resources
 	defaultCruiseControlRequestResourceCpu    = "200m"
@@ -125,7 +125,7 @@ const (
 	defaultKafkaClusterK8sClusterDomain  = "cluster.local"
 
 	// KafkaBroker.spec.container["kafka"].image
-	defaultKafkaImage = "docker-pipeline-upstream-mirror.dr-uw2.adobeitc.com/adobe/kafka:2.13-3.7.0"
+	defaultKafkaImage = "ghcr.io/banzaicloud/kafka:2.13-3.4.1"
 
 	/* Istio Ingress Config */
 
