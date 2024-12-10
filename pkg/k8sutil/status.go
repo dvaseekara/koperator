@@ -468,7 +468,7 @@ func CreateInternalListenerStatuses(kafkaCluster *banzaicloudv1beta1.KafkaCluste
 			if address == "" {
 				if kafkaCluster.Spec.HeadlessServiceEnabled {
 					headlessSvcNameFormat := "%s-%d." + kafka.HeadlessServiceTemplate + ".%s.svc.%s:%d"
-					if iListener.UsedForControllerCommunication {
+					if kafkaCluster.Spec.KRaftMode && iListener.UsedForControllerCommunication {
 						headlessSvcNameFormat = "%s-%d." + kafka.HeadlessControllerServiceTemplate + ".%s.svc.%s:%d"
 					}
 					address = fmt.Sprintf(headlessSvcNameFormat, kafkaCluster.Name, broker.Id, kafkaCluster.Name,
