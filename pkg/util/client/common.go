@@ -73,8 +73,12 @@ func GenerateKafkaAddressWithoutPort(cluster *v1beta1.KafkaCluster) string {
 
 func GenerateKafkaControllerAddressWithoutPort(cluster *v1beta1.KafkaCluster) string {
 	if cluster.Spec.HeadlessServiceEnabled {
+		serviceTemplate := kafka.HeadlessServiceTemplate
+		if cluster.Spec.KRaftMode {
+			serviceTemplate = kafka.HeadlessControllerServiceTemplate
+		}
 		return fmt.Sprintf("%s.%s.svc.%s",
-			fmt.Sprintf(kafka.HeadlessControllerServiceTemplate, cluster.Name),
+			fmt.Sprintf(serviceTemplate, cluster.Name),
 			cluster.Namespace,
 			cluster.Spec.GetKubernetesClusterDomain(),
 		)
