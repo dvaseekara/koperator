@@ -451,7 +451,7 @@ func TestGetBrokerLabels(t *testing.T) {
 				"test_label_key": "test_label_value",
 			},
 			brokerConfig: &BrokerConfig{
-				// Roles: []string{"controller", "broker"},
+				Roles: nil,
 				BrokerLabels: map[string]string{
 					AppLabelKey:      "test_app",
 					BrokerIdLabelKey: "test_id",
